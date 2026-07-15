@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+anthropic
+openai
+pandas
+openpyxl
+python-pptx
+python-multipart
+openai-whisper
+pydantic

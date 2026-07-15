@@ -1,0 +1,26 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+*.db
+*.sqlite3
+
+# --- Node / frontend ---
+node_modules/
+dist/
+.vite/
+
+# --- Env / secrets ---
+.env
+.env.local
+*.local
+
+# --- OS / editor ---
+.DS_Store
+.vscode/
+.idea/
+
+# --- Whisper model cache (large, re-downloaded on demand) ---
+*.pt
