@@ -3,6 +3,7 @@ uvicorn[standard]
 sqlalchemy
 anthropic
 openai
+datasets
 pandas
 openpyxl
 python-pptx
