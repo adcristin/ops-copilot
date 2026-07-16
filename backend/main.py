@@ -6,6 +6,9 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(__file__))
 
+from dotenv import load_dotenv
+load_dotenv()  # reads backend/.env into os.environ before any other import touches it
+
 from datetime import datetime
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
