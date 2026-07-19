@@ -6,9 +6,11 @@ Creates and manages tasks. Auto-generates tasks from:
   - Mailbox items classified as escalation/complaint
 This is what turns "gaps identified" into "tasks tracked to closure" from the JD.
 """
+import uuid
+import json
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
-from db.models import Task, QAScore, MailboxItem, Call
+from db.models import Task, QAScore, MailboxItem, Call, BackgroundTask
 
 
 def create_task_from_qa_flag(db: Session, qa_score: QAScore) -> Task:
@@ -66,3 +68,29 @@ def close_task(db: Session, task_id: int) -> Task:
         db.commit()
         db.refresh(task)
     return task
+
+
+def create_background_task(db: Session) -> str:
+    """Initialize a background task record and return its ID."""
+    task_id = str(uuid.uuid4())
+    bg_task = BackgroundTask(id=task_id, status="pending")
+    db.add(bg_task)
+    db.commit()
+    return task_id
+
+
+def update_background_task(db: Session, task_id: str, status: str, result: dict = None, error: str = None):
+    """Update the status and result of a background task."""
+    task = db.query(BackgroundTask).get(task_id)
+    if task:
+        task.status = status
+        if result:
+            task.result = result
+        if error:
+            task.error = error
+        db.commit()
+
+
+def get_background_task(db: Session, task_id: str) -> BackgroundTask:
+    """Retrieve a background task by ID."""
+    return db.query(BackgroundTask).get(task_id)

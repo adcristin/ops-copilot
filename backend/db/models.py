@@ -105,3 +105,26 @@ class Task(Base):
 
     assigned_agent = relationship("Agent", back_populates="tasks")
     mailbox_item = relationship("MailboxItem", back_populates="task")
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True)
+    username = Column(String(50), unique=True, nullable=False)
+    hashed_password = Column(String(255), nullable=False)
+    role = Column(String(20), default="user") # admin/user
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class BackgroundTask(Base):
+    """Tracks the status of heavy async operations (transcription, scoring)."""
+    __tablename__ = "background_tasks"
+
+    id = Column(String(50), primary_key=True) # UUID
+    status = Column(String(20), default="pending") # pending/processing/completed/failed
+    result = Column(JSON, nullable=True)
+    error = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+

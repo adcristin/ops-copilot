@@ -12,3 +12,7 @@ python-pptx
 python-multipart
 openai-whisper
 pydantic
+python-jose[cryptography]
+passlib[bcrypt]
+pytest
+httpx

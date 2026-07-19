@@ -9,8 +9,24 @@ LLM backend is provider-agnostic - see core/llm_client.py to switch between
 Anthropic direct and OpenRouter.
 """
 import json
-from typing import Optional
+from typing import Optional, List
+from pydantic import BaseModel, Field, ValidationError
 from core.llm_client import call_llm
+
+class Violation(BaseModel):
+    category: str
+    quote: str
+    note: str
+
+class RubricResult(BaseModel):
+    greeting_score: int = Field(ge=0, le=100)
+    compliance_score: int = Field(ge=0, le=100)
+    resolution_score: int = Field(ge=0, le=100)
+    tone_score: int = Field(ge=0, le=100)
+    overall_score: int = Field(ge=0, le=100)
+    sentiment: str
+    violations: List[Violation]
+    coaching_notes: str
 
 RUBRIC_PROMPT = """You are a call center QA analyst. Evaluate the following customer service call transcript against these criteria. Be strict and evidence-based - only flag violations you can point to directly in the transcript.
 
@@ -54,17 +70,24 @@ def score_transcript(transcript: str, model: Optional[str] = None) -> dict:
     prompt = RUBRIC_PROMPT.replace("{transcript}", transcript)
 
     raw_text = call_llm(prompt, max_tokens=1000, model=model)
-    # Strip markdown fences if the model wraps the JSON anyway
-    if raw_text.startswith("```"):
-        raw_text = raw_text.strip("`")
-        if raw_text.startswith("json"):
-            raw_text = raw_text[4:]
-    raw_text = raw_text.strip()
+
+    # Improved JSON extraction: find the first '{' and last '}'
+    start_idx = raw_text.find('{')
+    end_idx = raw_text.rfind('}')
+
+    if start_idx == -1 or end_idx == -1:
+        raise ValueError(f"LLM response did not contain a JSON object.\nRaw output: {raw_text}")
+
+    json_text = raw_text[start_idx:end_idx + 1]
 
     try:
-        parsed = json.loads(raw_text)
+        # Parse and validate with Pydantic
+        parsed_obj = RubricResult.model_validate_json(json_text)
+        parsed = parsed_obj.model_dump()
+    except ValidationError as e:
+        raise ValueError(f"LLM returned JSON that failed validation: {e}\nRaw output: {raw_text}")
     except json.JSONDecodeError as e:
-        raise ValueError(f"LLM did not return valid JSON: {e}\nRaw output: {raw_text}")
+        raise ValueError(f"LLM returned invalid JSON: {e}\nRaw output: {raw_text}")
 
     parsed["flagged"] = parsed.get("overall_score", 100) < FLAG_THRESHOLD
     parsed["raw_llm_response"] = parsed.copy()

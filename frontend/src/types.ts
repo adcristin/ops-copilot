@@ -2,6 +2,24 @@
 // (db/models.py). Keep these in sync manually for now; a future upgrade
 // could generate these from the OpenAPI schema at /openapi.json.
 
+export interface User {
+  username: string;
+  role: string;
+}
+
+export interface Token {
+  access_token: string;
+  token_type: string;
+}
+
+export interface BackgroundTask {
+  id: string;
+  status: "pending" | "processing" | "completed" | "failed";
+  result?: any;
+  error?: string;
+  created_at: string;
+}
+
 export type Priority = "high" | "medium" | "low";
 export type TaskStatus = "open" | "in_progress" | "blocked" | "done";
 export type MailboxCategory =
