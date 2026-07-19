@@ -24,3 +24,7 @@ dist/
 
 # --- Whisper model cache (large, re-downloaded on demand) ---
 *.pt
+
+# --- Claude Code plan files ---
+*.claudeplans*
+.claudeplans/
