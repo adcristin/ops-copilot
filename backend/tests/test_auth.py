@@ -1,7 +1,7 @@
 import pytest
 from fastapi.testclient import TestClient
 from main import app, get_db
-from db.session import Session
+from sqlalchemy.orm import Session
 from db.models import User
 from core.security import get_password_hash
 
