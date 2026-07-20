@@ -25,4 +25,5 @@ jobs:
       - name: Run tests
         run: |
           cd backend
-          pytest tests/ --import-mode=importlib
+          export PYTHONPATH=$PYTHONPATH:$(pwd)
+          pytest tests/
