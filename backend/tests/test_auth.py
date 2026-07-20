@@ -23,7 +23,7 @@ def test_auth_flow(db_session):
     password = "testpassword"
     hashed_password = get_password_hash(password)
 
-    db = db_session()
+    db = next(db_session)
     user = User(username=username, hashed_password=hashed_password, role="admin")
     db.add(user)
     db.commit()
