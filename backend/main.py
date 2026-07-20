@@ -51,6 +51,62 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ---------- Schemas ----------
+
+class TranscriptIn(BaseModel):
+    agent_id: int
+    customer_ref: Optional[str] = None
+    transcript: str
+    duration_seconds: Optional[int] = None
+
+
+class EmailIn(BaseModel):
+    sender: str
+    subject: str
+    body: str
+
+
+class AgentIn(BaseModel):
+    name: str
+    email: str
+    team: Optional[str] = None
+
+
+class UserIn(BaseModel):
+    username: str
+    password: str
+
+
+class UserOut(BaseModel):
+    username: str
+    role: str
+
+    class Config:
+        from_attributes = True
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
+
+
+def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+    """JWT token verification and user retrieval."""
+    payload = decode_access_token(token)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    username = payload.get("sub")
+    user = db.query(User).filter(User.username == username).first()
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
+    return user
+
+
+# ---------- Background Workers ----------
 
 def run_bg_score_call(task_id: str, payload: TranscriptIn):
     """Background worker for /calls/score"""
@@ -181,61 +237,6 @@ def run_bg_ingest_email(task_id: str, payload: EmailIn):
 @app.on_event("startup")
 def on_startup():
     init_db()
-
-
-# ---------- Schemas ----------
-
-class TranscriptIn(BaseModel):
-    agent_id: int
-    customer_ref: Optional[str] = None
-    transcript: str
-    duration_seconds: Optional[int] = None
-
-
-class EmailIn(BaseModel):
-    sender: str
-    subject: str
-    body: str
-
-
-class AgentIn(BaseModel):
-    name: str
-    email: str
-    team: Optional[str] = None
-
-
-class UserIn(BaseModel):
-    username: str
-    password: str
-
-
-class UserOut(BaseModel):
-    username: str
-    role: str
-
-    class Config:
-        from_attributes = True
-
-
-class Token(BaseModel):
-    access_token: str
-    token_type: str
-
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
-
-
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
-    """JWT token verification and user retrieval."""
-    payload = decode_access_token(token)
-    if not payload:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
-
-    username = payload.get("sub")
-    user = db.query(User).filter(User.username == username).first()
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found")
-    return user
 
 
 # ---------- Auth ----------

@@ -27,10 +27,27 @@ the "● live data" / "○ demo data" badge on each page).
 - **Security**: JWT (python-jose), Password Hashing (passlib/bcrypt).
 - **Frontend**: React 18, TypeScript, Vite, Recharts, lucide-react.
 - **CI/CD**: GitHub Actions, pytest, httpx.
+- **Infrastructure**: Docker, Docker Compose.
 
 ## ⚙️ Setup
 
-### Backend
+### 🐳 Quick Start (Recommended)
+The fastest way to get the entire system running is using Docker.
+
+1. **Environment**: Create a `.env` file in the `backend/` folder with your API keys (see below).
+2. **Launch**:
+   ```bash
+   docker-compose up --build
+   ```
+3. **Access**: 
+   - Frontend: `http://localhost:5173`
+   - API Docs: `http://localhost:8000/docs`
+
+---
+
+### 💻 Manual Setup (For Development)
+
+#### Backend
 ```bash
 cd backend
 pip install -r requirements.txt
@@ -44,7 +61,7 @@ Visit `http://localhost:8000/docs` for interactive API docs (Swagger).
 - `ANTHROPIC_API_KEY` or `OPENROUTER_API_KEY`: Your provider key.
 - `CORS_ALLOWED_ORIGINS`: Comma-separated list of allowed origins (e.g., `http://localhost:5173`). Defaults to `*`.
 
-### Frontend
+#### Frontend
 ```bash
 cd frontend
 npm install
