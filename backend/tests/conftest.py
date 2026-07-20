@@ -24,7 +24,7 @@ def db_session(engine):
     def _get_test_db():
         yield session
 
-    yield _get_test_db
+    yield session  # Return the actual session object instead of the helper function
 
     session.close()
     transaction.rollback()
