@@ -21,11 +21,12 @@ def db_session(engine):
     session = sessionmaker(bind=engine)()
 
     # Override get_db dependency to return this session
-    def _get_test_db():
-        yield session
+    from main import app
+    app.dependency_overrides[get_db] = lambda: session
 
-    yield session  # Return the actual session object instead of the helper function
+    yield session
 
     session.close()
     transaction.rollback()
     connection.close()
+    app.dependency_overrides.clear()
