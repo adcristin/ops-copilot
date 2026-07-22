@@ -1,7 +1,27 @@
+<p align="center">
+  <img src="docs/banner.png" alt="Ops Copilot banner" width="100%" />
+</p>
+
+<p align="center">
+  <a href="https://github.com/adcristin/ops-copilot/actions/workflows/ci.yml">
+    <img src="https://github.com/adcristin/ops-copilot/actions/workflows/ci.yml/badge.svg" alt="CI">
+  </a>
+  <a href="LICENSE">
+    <img src="https://img.shields.io/badge/license-MIT-4C9A8D.svg" alt="License: MIT">
+  </a>
+  <img src="https://img.shields.io/badge/python-3.11%2B-D4A24C.svg" alt="Python 3.11+">
+  <img src="https://img.shields.io/badge/typescript-strict-5B8FD9.svg" alt="TypeScript strict">
+  <a href="https://github.com/adcristin/ops-copilot/commits/main">
+    <img src="https://img.shields.io/github/last-commit/adcristin/ops-copilot.svg" alt="Last commit">
+  </a>
+</p>
+
 # Ops Copilot
+
 An automated delivery-operations toolkit: call quality auto-scoring, mailbox
 triage, task tracking, and scheduled reporting — the software equivalent of
-an "Operations Executive - Delivery Operations" role.
+an "Operations Executive – Delivery Operations" role, backed by a real
+async job pipeline, JWT auth, and a CI-tested API.
 
 ## 🚀 Core Capabilities
 
@@ -23,29 +43,29 @@ the "● live data" / "○ demo data" badge on each page).
 
 ## 🛠 Tech Stack
 
-- **Backend**: Python, FastAPI, SQLAlchemy (SQLite), Whisper (local), Anthropic SDK or OpenAI SDK.
-- **Security**: JWT (python-jose), Password Hashing (passlib/bcrypt).
-- **Frontend**: React 18, TypeScript, Vite, Recharts, lucide-react.
-- **CI/CD**: GitHub Actions, pytest, httpx.
-- **Infrastructure**: Docker, Docker Compose.
+- **Backend**: Python, FastAPI, SQLAlchemy (SQLite), Whisper (local), Anthropic SDK or OpenAI SDK
+- **Security**: JWT (python-jose), password hashing (passlib/bcrypt)
+- **Frontend**: React 18, TypeScript, Vite, Recharts, lucide-react
+- **CI/CD**: GitHub Actions, pytest, httpx
+- **Infrastructure**: Docker, Docker Compose
 
 ## ⚙️ Setup
 
-### 🐳 Quick Start (Recommended)
+### 🐳 Quick start (recommended)
 The fastest way to get the entire system running is using Docker.
 
-1. **Environment**: Create a `.env` file in the `backend/` folder with your API keys (see below).
+1. **Environment**: create a `.env` file in the `backend/` folder with your API keys (see below).
 2. **Launch**:
    ```bash
    docker-compose up --build
    ```
-3. **Access**: 
+3. **Access**:
    - Frontend: `http://localhost:5173`
    - API Docs: `http://localhost:8000/docs`
 
 ---
 
-### 💻 Manual Setup (For Development)
+### 💻 Manual setup (for development)
 
 #### Backend
 ```bash
@@ -56,10 +76,10 @@ uvicorn main:app --reload --port 8000
 ```
 Visit `http://localhost:8000/docs` for interactive API docs (Swagger).
 
-**Environment Variables** (`.env`):
-- `LLM_PROVIDER`: `anthropic` or `openrouter`.
-- `ANTHROPIC_API_KEY` or `OPENROUTER_API_KEY`: Your provider key.
-- `CORS_ALLOWED_ORIGINS`: Comma-separated list of allowed origins (e.g., `http://localhost:5173`). Defaults to `*`.
+**Environment variables** (`.env`):
+- `LLM_PROVIDER`: `anthropic` or `openrouter`
+- `ANTHROPIC_API_KEY` or `OPENROUTER_API_KEY`: your provider key
+- `CORS_ALLOWED_ORIGINS`: comma-separated list of allowed origins (e.g. `http://localhost:5173`) — defaults to `*`
 
 #### Frontend
 ```bash
@@ -70,29 +90,28 @@ npm run dev
 Open `http://localhost:5173`. Set `VITE_API_BASE` in a `.env` file if your
 backend isn't on `localhost:8000`.
 
-## 🔄 Async AI Workflow (Submit-Poll Pattern)
+## 🔄 Async AI workflow (submit-poll pattern)
 Because transcription and LLM scoring are high-latency operations, the API uses an asynchronous pattern to prevent server timeouts:
 
-1. **Submit**: Call `/calls/score`, `/calls/transcribe-and-score`, or `/mailbox`.
-2. **Acknowledge**: The server returns `202 Accepted` immediately with a `task_id`.
-3. **Poll**: The client polls `GET /tasks/background/{task_id}` to track the status (`pending` $\rightarrow$ `processing` $\rightarrow$ `completed`).
-4. **Retrieve**: Once `completed`, the final result is returned in the response.
+1. **Submit**: call `/calls/score`, `/calls/transcribe-and-score`, or `/mailbox`
+2. **Acknowledge**: the server returns `202 Accepted` immediately with a `task_id`
+3. **Poll**: the client polls `GET /tasks/background/{task_id}` to track status (`pending` → `processing` → `completed`)
+4. **Retrieve**: once `completed`, the final result is returned in the response
 
 ## 🔐 Authentication
-The API is secured with JWT tokens. 
-- **Login**: Use `POST /auth/token` (OAuth2 password flow) to receive a token.
-- **Access**: Include the token in the header: `Authorization: Bearer <token>`.
-- **Protected Routes**: Agent management, Reporting, and Task closing require authentication.
+The API is secured with JWT tokens.
+- **Login**: `POST /auth/token` (OAuth2 password flow) to receive a token
+- **Access**: include the token in the header: `Authorization: Bearer <token>`
+- **Protected routes**: agent management, reporting, and task closing require authentication
 
 ## 🧪 Testing & CI
-The project includes an integration test suite and a CI pipeline:
 - **Run tests locally**: `cd backend && pytest tests/`
-- **CI**: Every push to `main` triggers a GitHub Action that installs dependencies and executes the test suite.
+- **CI**: every push to `main` triggers a GitHub Action that installs dependencies and runs the test suite
 
-## 🌟 What's Next
-- **Scheduled reporting**: Cron/APScheduler calling the reporting endpoints daily/weekly.
-- **Production Deployment**: Backend to Render/Railway, frontend to Vercel, Postgres instead of SQLite.
-- **Celery Migration**: Transitioning from `FastAPI.background_tasks` to a dedicated Celery + Redis worker pool for higher concurrency.
+## 🌟 What's next
+- **Scheduled reporting**: cron/APScheduler calling the reporting endpoints daily/weekly
+- **Production deployment**: backend to Render/Railway, frontend to Vercel, Postgres instead of SQLite
+- **Celery migration**: moving from `FastAPI.background_tasks` to a dedicated Celery + Redis worker pool for higher concurrency
 
 ## License
 MIT — see [LICENSE](LICENSE).
