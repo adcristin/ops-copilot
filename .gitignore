@@ -28,3 +28,6 @@ dist/
 # --- Claude Code plan files ---
 *.claudeplans*
 .claudeplans/
+
+# --- Docs(Banner) ---
+docs/ 
