@@ -285,13 +285,7 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    const token = localStorage.getItem("ops_token");
-    if (token) {
-      api.me().then(setUser).catch(() => {
-        localStorage.removeItem("ops_token");
-        setUser(null);
-      });
-    }
+    // Session is now handled in-memory; no automatic restoration from localStorage
   }, []);
 
   const handleLogin = (u: User) => setUser(u);

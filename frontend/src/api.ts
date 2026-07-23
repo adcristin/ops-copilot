@@ -2,9 +2,13 @@ import type { Agent, Call, MailboxItem, Task, User, Token, BackgroundTask } from
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
 
-// Helper to get token from local storage
+let authToken: string | null = null;
+
+export const isAuthenticated = () => authToken !== null;
+
+// Helper to get token from memory
 function getToken(): string | null {
-  return localStorage.getItem("ops_token");
+  return authToken;
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -22,7 +26,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
   if (res.status === 401) {
     // Token expired or invalid - clear it and throw error to be caught by UI
-    localStorage.removeItem("ops_token");
+    authToken = null;
     throw new Error("Unauthorized");
   }
 
@@ -36,16 +40,27 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
 export const api = {
   // Auth
-  login: (data: { username: string; password: string }) =>
-    request<Token>("/auth/token", {
+  login: (data: { username: string; password: string }) => {
+    const params = new URLSearchParams();
+    params.append("username", data.username);
+    params.append("password", data.password);
+
+    return request<Token>("/auth/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: params
+    });
+  },
+
+  me: () => request<User>("/auth/me"),
+  signup: (data: { username: string; password: string }) =>
+    request<User>("/auth/signup", {
       method: "POST",
       body: JSON.stringify(data)
     }),
 
-  me: () => request<User>("/auth/me"),
-
-  setToken: (token: string) => localStorage.setItem("ops_token", token),
-  logout: () => localStorage.removeItem("ops_token"),
+  setToken: (token: string) => { authToken = token; },
+  logout: () => { authToken = null; },
 
   // Agents
   listAgents: () => request<Agent[]>("/agents"),

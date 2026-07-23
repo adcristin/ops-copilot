@@ -256,6 +256,21 @@ def get_me(current_user: User = Depends(get_current_user)):
     return current_user
 
 
+@app.post("/auth/signup", response_model=UserOut)
+def signup(payload: UserIn, db: Session = Depends(get_db)):
+    """Register a new user."""
+    existing_user = db.query(User).filter(User.username == payload.username).first()
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Username already registered")
+
+    hashed_pw = get_password_hash(payload.password)
+    new_user = User(username=payload.username, hashed_password=hashed_pw, role="user")
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    return new_user
+
+
 # ---------- Agents ----------
 
 @app.post("/agents")
