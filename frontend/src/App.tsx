@@ -7,6 +7,9 @@ import {
   Phone, ListChecks, AlertTriangle, CheckCircle2, Clock,
   FileSpreadsheet, Presentation, ChevronRight, Inbox as InboxIcon, Lock
 } from "lucide-react";
+import { Routes, Route, Navigate } from "react-router-dom";
+import LandingPage from "./pages/LandingPage";
+import SignupPage from "./pages/SignupPage";
 import { api } from "./api";
 import type {
   AgentPerformance, MailboxItem, Task, TaskStatus, Priority, MailboxCategory, User
@@ -65,7 +68,7 @@ function Login({ onLogin }: { onLogin: (user: User) => void }) {
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", background: BG, color: "#F2F3F5", fontFamily: "'Inter', sans-serif" }}>
       <div style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: 16, padding: 32, width: 320, textAlign: "center" }}>
-        <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}><div style={{ background: "#242A la 33", padding: 12, borderRadius: 12, color: ACCENT }}><Lock size={24} /></div></div>
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: 16 }}><div style={{ background: "#242A33", padding: 12, borderRadius: 12, color: ACCENT }}><Lock size={24} /></div></div>
         <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>Welcome Back</h2>
         <p style={{ color: TEXT_MUTED, fontSize: 13, marginBottom: 24 }}>Enter your credentials to access Ops Copilot</p>
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -114,7 +117,7 @@ function StatCard({ label, value, sub, color }: { label: string; value: string |
 }
 
 function Dashboard() {
-  const [agents, isLive] = useState<AgentPerformance[]>(MOCK_AGENTS);
+  const [agents, setAgents] = useState<AgentPerformance[]>(MOCK_AGENTS);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -142,6 +145,10 @@ function Dashboard() {
     { name: "70-89", value: agents.filter((a) => a.avgScore >= 70 && a.avgScore < 90).length, color: "#5B8FD9" },
     { name: "<70", value: agents.filter((a) => a.avgScore < 70).length, color: ACCENT },
   ];
+
+  if (loading) {
+    return <div style={{ padding: 32, flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: TEXT_MUTED, fontSize: 14 }}>Loading dashboard data...</div>;
+  }
 
   return (
     <div style={{ padding: 32, flex: 1, overflowY: "auto" }}>
@@ -294,14 +301,27 @@ export default function App() {
     setUser(null);
   };
 
-  if (!user) return <Login onLogin={handleLogin} />;
-
   return (
-    <div style={{ display: "flex", height: "100vh", background: BG, fontFamily: "'Inter', -apple-system, sans-serif" }}>
-      <Sidebar tab={tab} setTab={setTab} user={user} onLogout={handleLogout} />
-      {tab === "dashboard" && <Dashboard />}
-      {tab === "inbox" && <InboxTab />}
-      {tab === "tasks" && <TasksTab />}
-    </div>
+    <Routes>
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/signup" element={<SignupPage />} />
+      <Route path="/login" element={!user ? <Login onLogin={handleLogin} /> : <Navigate to="/dashboard" />} />
+      <Route
+        path="/dashboard"
+        element={
+          user ? (
+            <div style={{ display: "flex", height: "100vh", background: BG, fontFamily: "'Inter', -apple-system, sans-serif" }}>
+              <Sidebar tab={tab} setTab={setTab} user={user} onLogout={handleLogout} />
+              {tab === "dashboard" && <Dashboard />}
+              {tab === "inbox" && <InboxTab />}
+              {tab === "tasks" && <TasksTab />}
+            </div>
+          ) : (
+            <Navigate to="/login" />
+          )
+        }
+      />
+      <Route path="*" element={<Navigate to="/" />} />
+    </Routes>
   );
 }
