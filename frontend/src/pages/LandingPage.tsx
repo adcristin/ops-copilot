@@ -1,5 +1,4 @@
-import React from "react";
-import { Github, ArrowRight, CheckCircle2, Zap, ShieldCheck, LayoutDashboard } from "lucide-react";
+import { Github, ArrowRight, Zap, ShieldCheck, LayoutDashboard } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const ACCENT = "#D4A24C";

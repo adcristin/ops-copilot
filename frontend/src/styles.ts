@@ -1,0 +1,10 @@
+export const ACCENT = "#D4A24C";
+export const OK = "#4C9A8D";
+export const BG = "#14171C";
+export const PANEL = "#1B1F26";
+export const BORDER = "#2A2F38";
+export const TEXT_MUTED = "#8891A0";
+export const TEXT_LIGHT = "#F2F3F5";
+export const RED = "#C4573F";
+export const BLUE = "#5B8FD9";
+export const DARK_PANEL = "#242A33";
