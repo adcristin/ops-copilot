@@ -42,7 +42,7 @@ export default function LandingPage() {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
           <a
-            href="https://github.com"
+            href="https://github.com/adcristin/ops-copilot"
             target="_blank"
             rel="noopener noreferrer"
             style={{ color: TEXT_MUTED, transition: "color 0.2s" }}
