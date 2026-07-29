@@ -30,16 +30,43 @@ export default function LandingPage() {
         width: "100%",
         margin: "0 auto"
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          cursor: "pointer"
+        }} onClick={() => window.location.reload()}>
           <div style={{
-            fontFamily: "'JetBrains Mono', monospace",
-            fontSize: 14,
-            color: ACCENT,
-            fontWeight: 600
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: "8px"
           }}>
-            OPS://Copilot
-          </div>
-        </div>
+            {/* Logo Symbol - Using ACCENT for eye-catchy brand match */}
+            <img
+              src="/logo-symbol.png" // Placeholder path
+              alt="Ops Copilot Symbol"
+              style={{
+                width: "36px",
+                height: "36px",
+                objectFit: "contain",
+                filter: "drop-shadow(0 0 8px rgba(212, 162, 76, 0.3))"
+              }}
+            />
+            {/* Brand Text - Matching Website Accent */}
+            <div style={{
+              color: ACCENT,
+              fontSize: "16px",
+              fontWeight: "800",
+              letterSpacing: "-0.5px",
+              fontFamily: "'Inter', sans-serif",
+              textAlign: "center",
+              lineHeight: "1"
+            }}>
+              Ops Copilot
+            </div >
+          </div >
+        </div >
         <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
           <a
             href="https://github.com/adcristin/ops-copilot"
@@ -50,7 +77,7 @@ export default function LandingPage() {
             onMouseOut={(e) => e.currentTarget.style.color = TEXT_MUTED}
           >
             <Github size={20} />
-          </a>
+          </a >
           <button
             onClick={() => navigate("/login")}
             style={{
@@ -69,8 +96,8 @@ export default function LandingPage() {
           >
             Sign In
           </button>
-        </div>
-      </header>
+        </div >
+      </header >
 
       {/* Main Content */}
       <main style={{
@@ -103,8 +130,8 @@ export default function LandingPage() {
             marginBottom: 24,
             lineHeight: 1.1
           }}>
-            Ops <span style={{ color: ACCENT }}>Copilot</span>
-          </h1>
+            Ops <span style={{ color: ACCENT }}>Copilot</span >
+          </h1 >
           <p style={{
             fontSize: 20,
             color: TEXT_MUTED,
@@ -114,7 +141,7 @@ export default function LandingPage() {
           }}>
             LLM-powered call QA, mailbox triage & task automation.
             Transform your delivery operations from reactive to proactive.
-          </p>
+          </p >
 
           <button
             onClick={() => navigate("/signup")}
@@ -134,8 +161,8 @@ export default function LandingPage() {
             }}
           >
             Get Started <ArrowRight size={20} />
-          </button>
-        </div>
+          </button >
+        </div >
 
         {/* Features */}
         <div style={{
@@ -172,13 +199,13 @@ export default function LandingPage() {
               transition: "transform 0.2s",
               cursor: "default"
             }}>
-              <div style={{ marginBottom: 16 }}>{feature.icon}</div>
+              <div style={{ marginBottom: 16 }}>{feature.icon}</div >
               <h3 style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>{feature.title}</h3>
-              <p style={{ fontSize: 14, color: TEXT_MUTED, lineHeight: 1.5 }}>{feature.desc}</p>
-            </div>
+              <p style={{ fontSize: 14, color: TEXT_MUTED, lineHeight: 1.5 }}>{feature.desc}</p >
+            </div >
           ))}
-        </div>
-      </main>
-    </div>
+        </div >
+      </main >
+    </div >
   );
 }
