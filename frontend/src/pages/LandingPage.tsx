@@ -38,9 +38,9 @@ export default function LandingPage() {
         }} onClick={() => window.location.reload()}>
           <div style={{
             display: "flex",
-            flexDirection: "column",
+            flexDirection: "row",
             alignItems: "center",
-            gap: "8px"
+            gap: "12px"
           }}>
             {/* Logo Symbol - Using ACCENT for eye-catchy brand match */}
             <img
@@ -55,12 +55,12 @@ export default function LandingPage() {
             />
             {/* Brand Text - Matching Website Accent */}
             <div style={{
-              color: ACCENT,
+              color: "#F2F3F5",
               fontSize: "16px",
               fontWeight: "800",
               letterSpacing: "-0.5px",
               fontFamily: "'Inter', sans-serif",
-              textAlign: "center",
+              textAlign: "left",
               lineHeight: "1"
             }}>
               Ops Copilot
