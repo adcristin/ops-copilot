@@ -297,14 +297,21 @@ async def handle_oauth_callback(provider: str, code: str, db: Session):
 
     async with httpx.AsyncClient() as client:
         # 1. Exchange code for access token
-        token_resp = await client.post(token_url, data={
+        payload = {
             "client_id": client_id,
             "client_secret": client_secret,
             "code": code,
             "grant_type": "authorization_code",
-        }, headers={"Accept": "application/json"})
+        }
+        if provider == "google":
+            payload["redirect_uri"] = os.getenv("GOOGLE_REDIRECT_URI")
+        elif provider == "github":
+            payload["redirect_uri"] = os.getenv("GITHUB_REDIRECT_URI")
+
+        token_resp = await client.post(token_url, data=payload, headers={"Accept": "application/json"})
 
         if token_resp.is_error:
+            print(f"DEBUG: {provider} token exchange failed: {token_resp.status_code} - {token_resp.text}")
             raise HTTPException(401, "Failed to exchange code for token")
 
         access_token = token_resp.json().get("access_token")
@@ -316,20 +323,33 @@ async def handle_oauth_callback(provider: str, code: str, db: Session):
 
         user_resp = await client.get(user_info_url, headers=headers)
         if user_resp.is_error:
+            print(f"DEBUG: {provider} user_info error: {user_resp.text}")
             raise HTTPException(401, "Failed to fetch user info")
 
         user_data = user_resp.json()
         email = user_data.get("email")
+
+        # GitHub specific: emails might be private and require a separate call
+        if not email and provider == "github":
+            email_resp = await client.get("https://api.github.com/user/emails", headers=headers)
+            if not email_resp.is_error:
+                emails = email_resp.json()
+                # Find the primary verified email
+                primary_email = next((e["email"] for e in emails if e["primary"]), None)
+                if primary_email:
+                    email = primary_email
         provider_id = user_data.get("id") or user_data.get("sub")
 
         if not email:
             raise HTTPException(400, "Email not provided by OAuth provider")
 
         # 3. Account Linking / Creation
-        user = db.query(User).filter(
-            (provider == "google" and User.google_id == provider_id) |
-            (provider == "github" and User.github_id == provider_id)
-        ).first()
+        if provider == "google":
+            user = db.query(User).filter(User.google_id == provider_id).first()
+        elif provider == "github":
+            user = db.query(User).filter(User.github_id == provider_id).first()
+        else:
+            raise HTTPException(400, "Unsupported provider")
 
         if not user:
             user = db.query(User).filter(User.email == email).first()
