@@ -13,9 +13,10 @@ load_dotenv()  # reads backend/.env into os.environ before any other import touc
 from datetime import datetime
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 import shutil
+import httpx
 import tempfile
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -74,12 +75,16 @@ class AgentIn(BaseModel):
 
 class UserIn(BaseModel):
     username: str
+    email: str
     password: str
+
 
 
 class UserOut(BaseModel):
     username: str
+    email: Optional[str]
     role: str
+
 
     class Config:
         from_attributes = True
@@ -99,8 +104,8 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     if not payload:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
-    username = payload.get("sub")
-    user = db.query(User).filter(User.username == username).first()
+    user_id = payload.get("sub")
+    user = db.query(User).filter(User.id == int(user_id)).first()
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
     return user
@@ -243,11 +248,11 @@ def on_startup():
 
 @app.post("/auth/token", response_model=Token)
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.username == form_data.username).first()
+    user = db.query(User).filter((User.username == form_data.username) | (User.email == form_data.username)).first()
     if not user or not verify_password(form_data.password, user.hashed_password):
-        raise HTTPException(status_code=401, detail="Incorrect username or password")
+        raise HTTPException(status_code=401, detail="Incorrect username/email or password")
 
-    access_token = create_access_token(data={"sub": user.username})
+    access_token = create_access_token(data={"sub": str(user.id)})
     return {"access_token": access_token, "token_type": "bearer"}
 
 
@@ -259,16 +264,127 @@ def get_me(current_user: User = Depends(get_current_user)):
 @app.post("/auth/signup", response_model=UserOut)
 def signup(payload: UserIn, db: Session = Depends(get_db)):
     """Register a new user."""
-    existing_user = db.query(User).filter(User.username == payload.username).first()
+    existing_user = db.query(User).filter((User.username == payload.username) | (User.email == payload.email)).first()
     if existing_user:
-        raise HTTPException(status_code=400, detail="Username already registered")
+        if existing_user.username == payload.username:
+            raise HTTPException(status_code=400, detail="Username already registered")
+        if existing_user.email == payload.email:
+            raise HTTPException(status_code=400, detail="Email already registered")
 
     hashed_pw = get_password_hash(payload.password)
-    new_user = User(username=payload.username, hashed_password=hashed_pw, role="user")
+    new_user = User(username=payload.username, email=payload.email, hashed_password=hashed_pw, role="user")
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
     return new_user
+
+# ---------- OAuth ----------
+
+async def handle_oauth_callback(provider: str, code: str, db: Session):
+    """Common logic to handle OAuth callbacks."""
+    if provider == "google":
+        client_id = os.getenv("GOOGLE_CLIENT_ID")
+        client_secret = os.getenv("GOOGLE_CLIENT_SECRET")
+        token_url = "https://oauth2.googleapis.com/token"
+        user_info_url = "https://www.googleapis.com/oauth2/v3/userinfo"
+    elif provider == "github":
+        client_id = os.getenv("GITHUB_CLIENT_ID")
+        client_secret = os.getenv("GITHUB_CLIENT_SECRET")
+        token_url = "https://github.com/login/oauth/access_token"
+        user_info_url = "https://api.github.com/user"
+    else:
+        raise HTTPException(400, "Unsupported provider")
+
+    async with httpx.AsyncClient() as client:
+        # 1. Exchange code for access token
+        token_resp = await client.post(token_url, data={
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "code": code,
+            "grant_type": "authorization_code",
+        }, headers={"Accept": "application/json"})
+
+        if token_resp.is_error:
+            raise HTTPException(401, "Failed to exchange code for token")
+
+        access_token = token_resp.json().get("access_token")
+
+        # 2. Get user info
+        headers = {"Authorization": f"Bearer {access_token}"}
+        if provider == "github":
+            headers["User-Agent"] = "OpsCopilot-App"
+
+        user_resp = await client.get(user_info_url, headers=headers)
+        if user_resp.is_error:
+            raise HTTPException(401, "Failed to fetch user info")
+
+        user_data = user_resp.json()
+        email = user_data.get("email")
+        provider_id = user_data.get("id") or user_data.get("sub")
+
+        if not email:
+            raise HTTPException(400, "Email not provided by OAuth provider")
+
+        # 3. Account Linking / Creation
+        user = db.query(User).filter(
+            (provider == "google" and User.google_id == provider_id) |
+            (provider == "github" and User.github_id == provider_id)
+        ).first()
+
+        if not user:
+            user = db.query(User).filter(User.email == email).first()
+            if user:
+                # Link provider ID to existing account
+                if provider == "google": user.google_id = provider_id
+                else: user.github_id = provider_id
+            else:
+                # Create new user
+                import uuid
+                username = f"user_{uuid.uuid4().hex[:8]}"
+                user = User(username=username, email=email, role="user")
+                if provider == "google": user.google_id = provider_id
+                else: user.github_id = provider_id
+                db.add(user)
+
+            db.commit()
+            db.refresh(user)
+
+        # 4. Generate JWT and redirect
+        jwt_token = create_access_token(data={"sub": str(user.id)})
+        frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+        return RedirectResponse(url=f"{frontend_url}/auth-callback?token={jwt_token}")
+
+@app.get("/auth/login/{provider}")
+async def oauth_login(provider: str):
+    """Redirect user to OAuth provider."""
+    if provider == "google":
+        url = "https://accounts.google.com/o/oauth2/v2/auth"
+        params = {
+            "client_id": os.getenv("GOOGLE_CLIENT_ID"),
+            "redirect_uri": os.getenv("GOOGLE_REDIRECT_URI"),
+            "response_type": "code",
+            "scope": "openid email profile",
+            "access_type": "offline",
+        }
+    elif provider == "github":
+        url = "https://github.com/login/oauth/authorize"
+        params = {
+            "client_id": os.getenv("GITHUB_CLIENT_ID"),
+            "redirect_uri": os.getenv("GITHUB_REDIRECT_URI"),
+            "scope": "user:email",
+        }
+    else:
+        raise HTTPException(400, "Unsupported provider")
+
+    import urllib.parse
+    query = urllib.parse.urlencode(params)
+    return RedirectResponse(url=f"{url}?{query}")
+
+@app.get("/auth/callback/{provider}")
+async def oauth_callback(provider: str, code: str, db: Session = Depends(get_db)):
+    """Handle OAuth callback."""
+    return await handle_oauth_callback(provider, code, db)
+
 
 
 # ---------- Agents ----------

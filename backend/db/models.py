@@ -112,8 +112,11 @@ class User(Base):
 
     id = Column(Integer, primary_key=True)
     username = Column(String(50), unique=True, nullable=False)
-    hashed_password = Column(String(255), nullable=False)
+    email = Column(String(200), unique=True, nullable=True)
+    hashed_password = Column(String(255), nullable=True)
     role = Column(String(20), default="user") # admin/user
+    google_id = Column(String(100), unique=True, nullable=True)
+    github_id = Column(String(100), unique=True, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
