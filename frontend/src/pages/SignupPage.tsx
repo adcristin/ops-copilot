@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { UserPlus } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
 import { api } from "../api";
+import SocialButton from "../components/SocialButton";
 
 const BG = "#14171C";
 const PANEL = "#1B1F26";
@@ -10,7 +11,7 @@ const ACCENT = "#D4A24C";
 const TEXT_MUTED = "#8891A0";
 
 export default function SignupPage() {
-  const [form, setForm] = useState({ username: "", password: "" });
+  const [form, setForm] = useState({ username: "", email: "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -28,6 +29,10 @@ export default function SignupPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const oauthSignup = (provider: string) => {
+    window.location.href = `http://localhost:8000/auth/login/${provider}`;
   };
 
   return (
@@ -65,6 +70,14 @@ export default function SignupPage() {
             required
           />
           <input
+            type="email"
+            placeholder="Email Address"
+            value={form.email}
+            onChange={(e) => setForm({ ...form, email: e.target.value })}
+            style={{ background: BG, border: `1px solid ${BORDER}`, color: "#F2F3F5", padding: "10px 12px", borderRadius: 8, fontSize: 14 }}
+            required
+          />
+          <input
             type="password"
             placeholder="Password"
             value={form.password}
@@ -89,6 +102,24 @@ export default function SignupPage() {
             {loading ? "Creating account..." : "Sign Up"}
           </button>
         </form>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 24 }}>
+          <div style={{ height: 1, background: BORDER, opacity: 0.5 }} />
+          <p style={{ color: TEXT_MUTED, fontSize: 12 }}>Or continue with</p>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+            <SocialButton
+              provider="google"
+              onClick={() => oauthSignup("google")}
+              label="SIGN UP WITH GOOGLE"
+            />
+            <SocialButton
+              provider="github"
+              onClick={() => oauthSignup("github")}
+              label="SIGN UP WITH GITHUB"
+            />
+          </div>
+        </div>
+
         <div style={{ marginTop: 24, fontSize: 13, color: TEXT_MUTED }}>
           Already have an account?{" "}
           <Link to="/login" style={{ color: ACCENT, textDecoration: "none", fontWeight: 600 }}>Sign in</Link>

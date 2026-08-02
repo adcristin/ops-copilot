@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Lock } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
 import { api } from "../api";
+import SocialButton from "../components/SocialButton";
 
 const BG = "#14171C";
 const PANEL = "#1B1F26";
@@ -28,6 +29,10 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const oauthLogin = (provider: string) => {
+    window.location.href = `http://localhost:8000/auth/login/${provider}`;
   };
 
   return (
@@ -58,7 +63,7 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           <input
             type="text"
-            placeholder="Username"
+            placeholder="Email or Username"
             value={form.username}
             onChange={(e) => setForm({ ...form, username: e.target.value })}
             style={{ background: BG, border: `1px solid ${BORDER}`, color: "#F2F3F5", padding: "10px 12px", borderRadius: 8, fontSize: 14 }}
@@ -87,6 +92,24 @@ export default function LoginPage() {
             {loading ? "Authenticating..." : "Login"}
           </button>
         </form>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 24 }}>
+          <div style={{ height: 1, background: BORDER, opacity: 0.5 }} />
+          <p style={{ color: TEXT_MUTED, fontSize: 12 }}>Or continue with</p>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+            <SocialButton
+              provider="google"
+              onClick={() => oauthLogin("google")}
+              label="LOGIN WITH GOOGLE"
+            />
+            <SocialButton
+              provider="github"
+              onClick={() => oauthLogin("github")}
+              label="LOGIN WITH GITHUB"
+            />
+          </div>
+        </div>
+
         <div style={{ marginTop: 24, fontSize: 13, color: TEXT_MUTED }}>
           Don't have an account?{" "}
           <Link to="/signup" style={{ color: ACCENT, textDecoration: "none", fontWeight: 600 }}>Sign up</Link>

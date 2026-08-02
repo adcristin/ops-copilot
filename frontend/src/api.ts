@@ -42,7 +42,7 @@ export const api = {
   // Auth
   login: (data: { username: string; password: string }) => {
     const params = new URLSearchParams();
-    params.append("username", data.username);
+    params.append("username", data.username); // This is now email or username
     params.append("password", data.password);
 
     return request<Token>("/auth/token", {
@@ -53,7 +53,7 @@ export const api = {
   },
 
   me: () => request<User>("/auth/me"),
-  signup: (data: { username: string; password: string }) =>
+  signup: (data: { username: string; email: string; password: string }) =>
     request<User>("/auth/signup", {
       method: "POST",
       body: JSON.stringify(data)
