@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Lock } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
-import { api } from "../api";
+import { api, API_BASE } from "../api";
 import SocialButton from "../components/SocialButton";
 
 const BG = "#14171C";
@@ -32,7 +32,7 @@ export default function LoginPage() {
   };
 
   const oauthLogin = (provider: string) => {
-    window.location.href = `http://localhost:8000/auth/login/${provider}`;
+    window.location.href = `${API_BASE}/auth/login/${provider}`;
   };
 
   return (
