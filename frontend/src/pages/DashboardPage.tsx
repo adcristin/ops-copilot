@@ -50,9 +50,28 @@ function Sidebar({ tab, setTab, user, onLogout }: { tab: TabId; setTab: (id: Tab
   ];
   return (
     <div style={{ width: 220, background: PANEL, borderRight: `1px solid ${BORDER}`, padding: "24px 16px", display: "flex", flexDirection: "column", gap: 4 }}>
-      <div style={{ padding: "0 8px 24px 8px" }}>
-        <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13, color: TEXT_MUTED, letterSpacing: 1 }}>OPS://</div>
-        <div style={{ fontSize: 20, fontWeight: 700, color: TEXT_LIGHT, letterSpacing: -0.3 }}>Copilot</div>
+      <div style={{ padding: "0 8px 24px 8px", display: "flex", alignItems: "center", gap: 12 }}>
+        <img
+          src="/logo-symbol.png"
+          alt="Ops Copilot Symbol"
+          style={{
+            width: 32,
+            height: 32,
+            objectFit: "contain",
+            filter: "drop-shadow(0 0 8px rgba(212, 162, 76, 0.3))"
+          }}
+        />
+        <div style={{
+          color: TEXT_LIGHT,
+          fontSize: 16,
+          fontWeight: 800,
+          letterSpacing: -0.5,
+          fontFamily: "'Inter', sans-serif",
+          textAlign: "left",
+          lineHeight: 1
+        }}>
+          Ops Copilot
+        </div>
       </div>
       {items.map(({ id, label, icon: Icon }) => (
         <div
@@ -131,7 +150,7 @@ function Dashboard() {
             <h1 style={{ fontSize: 22, fontWeight: 700, color: TEXT_LIGHT, margin: 0 }}>Call Quality Overview</h1>
             <LiveBadge isLive={true} />
           </div>
-          <p style={{ color: TEXT_MUTED, fontSize: 13, marginTop: 4 }}>Auto-scored via LLM rubric across greeting, compliance, resolution, and tone.</p>
+          <p style={{ color: TEXT_MUTED, fontSize: 13 }}>Auto-scored via LLM rubric across greeting, compliance, resolution, and tone.</p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <a href={api.reportUrls.excel()} style={{ textDecoration: "none" }}><button style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 500, padding: "8px 12px", borderRadius: 8, border: `1px solid ${BORDER}`, background: PANEL, color: TEXT_MUTED, cursor: "pointer" }}><FileSpreadsheet size={14} /> Export Excel</button></a>
