@@ -7,6 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Backend (Python/FastAPI)
 - **Install dependencies**: `cd backend && pip install -r requirements.txt`
 - **Run server**: `cd backend && uvicorn main:app --reload --port 8000`
+- **Seed database**: `cd backend && python -m scripts.seed_call_qa --limit 20 --score`
 - **Run tests**: `cd backend && pytest tests/`
 - **Run specific test**: `cd backend && pytest tests/test_filename.py`
 
@@ -32,6 +33,7 @@ Ops Copilot is an automated delivery-operations toolkit consisting of a FastAPI 
 - `backend/mailbox_ops/`: Email classification and response drafting.
 - `backend/tasks/`: Automation for creating tasks from QA flags and email escalations.
 - `backend/reporting/`: Generation of Excel and PowerPoint reports.
+- `backend/scripts/`: Utility scripts for seeding the database with demo data.
 - `backend/tests/`: Integration and unit tests using `pytest` and `httpx`.
 
 ### Frontend Structure

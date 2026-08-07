@@ -72,6 +72,8 @@ The fastest way to get the entire system running is using Docker.
 cd backend
 pip install -r requirements.txt
 cp .env.example .env   # then fill in your key(s)
+# Optional: seed the DB with realistic data
+python -m scripts.seed_call_qa --limit 20 --score
 uvicorn main:app --reload --port 8000
 ```
 Visit `http://localhost:8000/docs` for interactive API docs (Swagger).
