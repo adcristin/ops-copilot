@@ -10,7 +10,7 @@ import bcrypt
 # Configuration - in a real app, these would be in .env
 SECRET_KEY = "your-secret-key-here-change-me-in-prod" # Should be os.getenv("SECRET_KEY")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 # 24 hours for convenience in demo
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 30 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Check if the provided password matches the hash in the DB."""
