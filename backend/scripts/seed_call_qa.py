@@ -26,7 +26,7 @@ from dotenv import load_dotenv
 load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"))
 
 from db.session import init_db, SessionLocal
-from db.models import Agent, Call, QAScore
+from db.models import Organization, Agent, Call, QAScore
 
 DEMO_AGENT_NAMES = [
     ("Priya Sharma", "priya.sharma@company.com"),
@@ -36,17 +36,40 @@ DEMO_AGENT_NAMES = [
 ]
 
 
-def get_or_create_demo_agents(db, count: int):
-    agents = db.query(Agent).filter(Agent.team == "Delivery Ops (seeded)").all()
+def get_or_create_demo_org(db):
+    org = db.query(Organization).filter(Organization.name == "Demo Corp").first()
+    if not org:
+        org = Organization(name="Demo Corp")
+        db.add(org)
+        db.commit()
+        db.refresh(org)
+    return org
+
+
+def get_or_create_demo_agents(db, org_id, count: int):
+    agents = db.query(Agent).filter(
+        Agent.org_id == org_id,
+        Agent.team == "Delivery Ops (seeded)"
+    ).all()
+
     if len(agents) >= count:
         return agents[:count]
+
     existing_emails = {a.email for a in agents}
     for name, email in DEMO_AGENT_NAMES[:count]:
         if email not in existing_emails:
-            a = Agent(name=name, email=email, team="Delivery Ops (seeded)")
+            a = Agent(
+                name=name,
+                email=email,
+                team="Delivery Ops (seeded)",
+                org_id=org_id
+            )
             db.add(a)
     db.commit()
-    return db.query(Agent).filter(Agent.team == "Delivery Ops (seeded)").all()[:count]
+    return db.query(Agent).filter(
+        Agent.org_id == org_id,
+        Agent.team == "Delivery Ops (seeded)"
+    ).all()[:count]
 
 
 def fetch_conversations(limit: int):
@@ -54,7 +77,7 @@ def fetch_conversations(limit: int):
     Streams the dataset and reconstructs full transcripts by grouping rows
     that share a conversation_id (rows for the same conversation are
     contiguous in this dataset). Uses streaming mode so we never download
-    the full ~738MB dataset - we just pull what we need.
+    the full ~738MB dataset - just pull what we need.
     """
     from datasets import load_dataset
 
@@ -87,8 +110,9 @@ def seed(limit: int, do_score: bool, num_agents: int):
     init_db()
     db = SessionLocal()
 
-    agents = get_or_create_demo_agents(db, num_agents)
-    print(f"Using {len(agents)} agent(s): {[a.name for a in agents]}")
+    org = get_or_create_demo_org(db)
+    agents = get_or_create_demo_agents(db, org.id, num_agents)
+    print(f"Using {len(agents)} agent(s) for Org {org.name}: {[a.name for a in agents]}")
 
     transcripts = fetch_conversations(limit)
     print(f"Fetched {len(transcripts)} transcripts.")
@@ -99,7 +123,11 @@ def seed(limit: int, do_score: bool, num_agents: int):
 
     for i, transcript in enumerate(transcripts):
         agent = agents[i % len(agents)]
-        call = Call(agent_id=agent.id, transcript=transcript)
+        call = Call(
+            org_id=org.id,
+            agent_id=agent.id,
+            transcript=transcript
+        )
         db.add(call)
         db.commit()
         db.refresh(call)

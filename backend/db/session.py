@@ -1,6 +1,6 @@
 import os
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import create_engine, select
+from sqlalchemy.orm import sessionmaker, Session, with_loader_criteria
 from .models import Base
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./ops_copilot.db")
@@ -17,10 +17,31 @@ else:
 engine = create_engine(DATABASE_URL, connect_args=connect_args, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+class ScopedSession(Session):
+    """A session that automatically filters all queries by org_id."""
+    def __init__(self, *args, org_id=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.org_id = org_id
+
+    def execute(self, statement, *args, **kwargs):
+        if self.org_id:
+            # Automatically add org_id filter to any model that has an org_id attribute
+            statement = statement.options(
+                with_loader_criteria(
+                    lambda cls: cls.org_id == self.org_id if hasattr(cls, "org_id") else True
+                )
+            )
+        return super().execute(statement, *args, **kwargs)
+
+    def query(self, entity):
+        # Support for legacy query() style
+        query = super().query(entity)
+        if self.org_id and hasattr(entity, "org_id"):
+            query = query.filter(entity.org_id == self.org_id)
+        return query
 
 def init_db():
     Base.metadata.create_all(bind=engine)
-
 
 def get_db():
     db = SessionLocal()

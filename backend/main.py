@@ -25,8 +25,10 @@ from typing import Optional
 from db.session import get_db, init_db
 from db.models import Agent, Call, QAScore, MailboxItem, Task, User
 from core.security import (
-    verify_password, get_password_hash, create_access_token, decode_access_token
+    verify_password, get_password_hash, create_access_token, decode_access_token,
+    get_current_user, require_admin
 )
+from core.dependencies import get_scoped_db
 from call_qa.scorer import score_and_explain
 from mailbox_ops.classifier import classify_email
 from tasks.service import (
@@ -98,28 +100,19 @@ class Token(BaseModel):
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 
 
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
-    """JWT token verification and user retrieval."""
-    payload = decode_access_token(token)
-    if not payload:
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
-
-    user_id = payload.get("sub")
-    user = db.query(User).filter(User.id == int(user_id)).first()
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found")
-    return user
+# ---------- Background Workers ----------
 
 
 # ---------- Background Workers ----------
 
-def run_bg_score_call(task_id: str, payload: TranscriptIn):
+def run_bg_score_call(task_id: str, payload: TranscriptIn, org_id: str):
     """Background worker for /calls/score"""
     db = next(get_db())
     try:
         update_background_task(db, task_id, "processing")
 
         call = Call(
+            org_id=org_id,
             agent_id=payload.agent_id,
             customer_ref=payload.customer_ref,
             transcript=payload.transcript,
@@ -158,7 +151,7 @@ def run_bg_score_call(task_id: str, payload: TranscriptIn):
         db.close()
 
 
-def run_bg_transcribe_and_score(task_id: str, agent_id: int, customer_ref: Optional[str], audio_path: str):
+def run_bg_transcribe_and_score(task_id: str, agent_id: int, customer_ref: Optional[str], audio_path: str, org_id: str):
     """Background worker for /calls/transcribe-and-score"""
     db = next(get_db())
     try:
@@ -169,6 +162,7 @@ def run_bg_transcribe_and_score(task_id: str, agent_id: int, customer_ref: Optio
         transcript_text = transcript_result["text"]
 
         call = Call(
+            org_id=org_id,
             agent_id=agent_id,
             customer_ref=customer_ref,
             audio_path=audio_path,
@@ -207,7 +201,7 @@ def run_bg_transcribe_and_score(task_id: str, agent_id: int, customer_ref: Optio
         db.close()
 
 
-def run_bg_ingest_email(task_id: str, payload: EmailIn):
+def run_bg_ingest_email(task_id: str, payload: EmailIn, org_id: str):
     """Background worker for /mailbox"""
     db = next(get_db())
     try:
@@ -215,6 +209,7 @@ def run_bg_ingest_email(task_id: str, payload: EmailIn):
         result = classify_email(payload.subject, payload.body)
 
         item = MailboxItem(
+            org_id=org_id,
             sender=payload.sender,
             subject=payload.subject,
             body=payload.body,
@@ -410,8 +405,8 @@ async def oauth_callback(provider: str, code: str, db: Session = Depends(get_db)
 # ---------- Agents ----------
 
 @app.post("/agents")
-def create_agent(payload: AgentIn, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    agent = Agent(name=payload.name, email=payload.email, team=payload.team)
+def create_agent(payload: AgentIn, db: Session = Depends(get_scoped_db), current_user: User = Depends(get_current_user)):
+    agent = Agent(name=payload.name, email=payload.email, team=payload.team, org_id=current_user.org_id)
     db.add(agent)
     db.commit()
     db.refresh(agent)
@@ -419,17 +414,17 @@ def create_agent(payload: AgentIn, db: Session = Depends(get_db), current_user: 
 
 
 @app.get("/agents")
-def list_agents(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def list_agents(db: Session = Depends(get_scoped_db), current_user: User = Depends(get_current_user)):
     return db.query(Agent).all()
 
 
 # ---------- Call QA ----------
 
 @app.post("/calls/score", status_code=202)
-def score_call(payload: TranscriptIn, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+def score_call(payload: TranscriptIn, background_tasks: BackgroundTasks, db: Session = Depends(get_scoped_db), current_user: User = Depends(get_current_user)):
     """Ingest a transcript and schedule it for LLM rubric scoring."""
     task_id = create_background_task(db)
-    background_tasks.add_task(run_bg_score_call, task_id, payload)
+    background_tasks.add_task(run_bg_score_call, task_id, payload, current_user.org_id)
     return {"task_id": task_id, "status": "accepted"}
 
 
@@ -439,7 +434,8 @@ def transcribe_and_score(
     agent_id: int = Form(...),
     customer_ref: Optional[str] = Form(None),
     audio: UploadFile = File(...),
-    db: Session = Depends(get_db),
+    db: Session = Depends(get_scoped_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Full pipeline: upload audio -> Whisper transcription -> LLM rubric scoring -> store."""
     with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(audio.filename)[1]) as tmp:
@@ -447,13 +443,13 @@ def transcribe_and_score(
         tmp_path = tmp.name
 
     task_id = create_background_task(db)
-    background_tasks.add_task(run_bg_transcribe_and_score, task_id, agent_id, customer_ref, tmp_path)
+    background_tasks.add_task(run_bg_transcribe_and_score, task_id, agent_id, customer_ref, tmp_path, current_user.org_id)
 
     return {"task_id": task_id, "status": "accepted"}
 
 
 @app.get("/calls/{call_id}")
-def get_call(call_id: int, db: Session = Depends(get_db)):
+def get_call(call_id: int, db: Session = Depends(get_scoped_db), current_user: User = Depends(get_current_user)):
     call = db.query(Call).get(call_id)
     if not call:
         raise HTTPException(404, "Call not found")
@@ -461,29 +457,29 @@ def get_call(call_id: int, db: Session = Depends(get_db)):
 
 
 @app.get("/calls")
-def list_calls(db: Session = Depends(get_db)):
+def list_calls(db: Session = Depends(get_scoped_db), current_user: User = Depends(get_current_user)):
     return db.query(Call).order_by(Call.call_date.desc()).all()
 
 
 # ---------- Mailbox ----------
 
 @app.post("/mailbox", status_code=202)
-def ingest_email(payload: EmailIn, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+def ingest_email(payload: EmailIn, background_tasks: BackgroundTasks, db: Session = Depends(get_scoped_db), current_user: User = Depends(get_current_user)):
     """Classify an incoming email and schedule it for processing."""
     task_id = create_background_task(db)
-    background_tasks.add_task(run_bg_ingest_email, task_id, payload)
+    background_tasks.add_task(run_bg_ingest_email, task_id, payload, current_user.org_id)
     return {"task_id": task_id, "status": "accepted"}
 
 
 @app.get("/mailbox")
-def list_mailbox(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def list_mailbox(db: Session = Depends(get_scoped_db), current_user: User = Depends(get_current_user)):
     return db.query(MailboxItem).order_by(MailboxItem.received_at.desc()).all()
 
 
 # ---------- Tasks ----------
 
 @app.get("/tasks/background/{task_id}")
-def get_background_task_status(task_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def get_background_task_status(task_id: str, db: Session = Depends(get_scoped_db), current_user: User = Depends(get_current_user)):
     """Check the status of a background AI operation."""
     task = get_background_task(db, task_id)
     if not task:
@@ -498,17 +494,17 @@ def get_background_task_status(task_id: str, db: Session = Depends(get_db), curr
 
 
 @app.get("/tasks")
-def list_tasks(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def list_tasks(db: Session = Depends(get_scoped_db), current_user: User = Depends(get_current_user)):
     return db.query(Task).order_by(Task.due_date.asc()).all()
 
 
 @app.get("/tasks/overdue")
-def overdue_tasks(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def overdue_tasks(db: Session = Depends(get_scoped_db), current_user: User = Depends(get_current_user)):
     return get_overdue_tasks(db)
 
 
 @app.post("/tasks/{task_id}/close")
-def close_task_endpoint(task_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def close_task_endpoint(task_id: int, db: Session = Depends(get_scoped_db), current_user: User = Depends(get_current_user)):
     task = close_task(db, task_id)
     if not task:
         raise HTTPException(404, "Task not found")
@@ -518,13 +514,13 @@ def close_task_endpoint(task_id: int, db: Session = Depends(get_db), current_use
 # ---------- Reporting ----------
 
 @app.get("/reports/excel")
-def download_excel(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def download_excel(db: Session = Depends(get_scoped_db), current_user: User = Depends(get_current_user)):
     path = generate_excel_report(db, output_path="/tmp/ops_report.xlsx")
     return FileResponse(path, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", filename="ops_report.xlsx")
 
 
 @app.get("/reports/pptx")
-def download_pptx(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def download_pptx(db: Session = Depends(get_scoped_db), current_user: User = Depends(get_current_user)):
     path = generate_pptx_report(db, output_path="/tmp/ops_report.pptx")
     return FileResponse(path, media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation", filename="ops_report.pptx")
 
