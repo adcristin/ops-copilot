@@ -3,8 +3,9 @@ SQLAlchemy models for Ops Copilot.
 Using SQLite for local dev (swap DATABASE_URL for Postgres in production).
 """
 from datetime import datetime
+import uuid
 from sqlalchemy import (
-    Column, Integer, String, Float, DateTime, Text, ForeignKey, Boolean, JSON
+    Column, Integer, String, Float, DateTime, Text, ForeignKey, Boolean, JSON, UUID
 )
 from sqlalchemy.orm import relationship, declarative_base
 
@@ -14,7 +15,7 @@ Base = declarative_base()
 class Agent(Base):
     __tablename__ = "agents"
 
-    id = Column(Integer, primary_key=True)
+    id = Column(UUID, primary_key=True, default=uuid.uuid4)
     name = Column(String(120), nullable=False)
     email = Column(String(200), unique=True)
     team = Column(String(120))
@@ -27,8 +28,8 @@ class Agent(Base):
 class Call(Base):
     __tablename__ = "calls"
 
-    id = Column(Integer, primary_key=True)
-    agent_id = Column(Integer, ForeignKey("agents.id"))
+    id = Column(UUID, primary_key=True, default=uuid.uuid4)
+    agent_id = Column(UUID, ForeignKey("agents.id"))
     customer_ref = Column(String(120))          # anonymized customer id
     audio_path = Column(String(500))            # path/URL to source audio (nullable if transcript-only)
     transcript = Column(Text)
@@ -43,8 +44,8 @@ class QAScore(Base):
     """Structured output of the LLM rubric scorer for one call."""
     __tablename__ = "qa_scores"
 
-    id = Column(Integer, primary_key=True)
-    call_id = Column(Integer, ForeignKey("calls.id"), unique=True)
+    id = Column(UUID, primary_key=True, default=uuid.uuid4)
+    call_id = Column(UUID, ForeignKey("calls.id"), unique=True)
 
     overall_score = Column(Float)                # 0-100
     greeting_score = Column(Float)
@@ -67,7 +68,7 @@ class MailboxItem(Base):
     """A single email that came into the shared delivery mailbox."""
     __tablename__ = "mailbox_items"
 
-    id = Column(Integer, primary_key=True)
+    id = Column(UUID, primary_key=True, default=uuid.uuid4)
     sender = Column(String(200))
     subject = Column(String(500))
     body = Column(Text)
@@ -89,7 +90,7 @@ class Task(Base):
     """Unified task tracker - links back to QA flags or mailbox escalations."""
     __tablename__ = "tasks"
 
-    id = Column(Integer, primary_key=True)
+    id = Column(UUID, primary_key=True, default=uuid.uuid4)
     title = Column(String(300), nullable=False)
     description = Column(Text)
     status = Column(String(30), default="open")    # open/in_progress/blocked/done
@@ -98,10 +99,10 @@ class Task(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     closed_at = Column(DateTime, nullable=True)
 
-    assigned_agent_id = Column(Integer, ForeignKey("agents.id"), nullable=True)
+    assigned_agent_id = Column(UUID, ForeignKey("agents.id"), nullable=True)
     source_type = Column(String(30))                # "qa_flag" / "mailbox_escalation" / "manual"
-    source_qa_score_id = Column(Integer, ForeignKey("qa_scores.id"), nullable=True)
-    mailbox_item_id = Column(Integer, ForeignKey("mailbox_items.id"), nullable=True)
+    source_qa_score_id = Column(UUID, ForeignKey("qa_scores.id"), nullable=True)
+    mailbox_item_id = Column(UUID, ForeignKey("mailbox_items.id"), nullable=True)
 
     assigned_agent = relationship("Agent", back_populates="tasks")
     mailbox_item = relationship("MailboxItem", back_populates="task")
@@ -110,7 +111,7 @@ class Task(Base):
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(Integer, primary_key=True)
+    id = Column(UUID, primary_key=True, default=uuid.uuid4)
     username = Column(String(50), unique=True, nullable=False)
     email = Column(String(200), unique=True, nullable=True)
     hashed_password = Column(String(255), nullable=True)
