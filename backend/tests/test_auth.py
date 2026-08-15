@@ -2,7 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 from main import app, get_db
 from sqlalchemy.orm import Session
-from db.models import User
+from db.models import User, Organization
 from core.security import get_password_hash
 
 client = TestClient(app)
@@ -18,13 +18,18 @@ def test_auth_protected_route_no_token(db_session):
     assert response.status_code == 401
 
 def test_auth_flow(db_session):
+    # Create a test organization
+    org = Organization(name="Test Org")
+    db_session.add(org)
+    db_session.commit()
+
     # Create a test user
     username = "testuser"
     password = "testpassword"
     hashed_password = get_password_hash(password)
 
     db = db_session
-    user = User(username=username, hashed_password=hashed_password, role="admin")
+    user = User(username=username, hashed_password=hashed_password, role="admin", org_id=org.id)
     db.add(user)
     db.commit()
 

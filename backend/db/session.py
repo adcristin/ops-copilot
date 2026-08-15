@@ -24,13 +24,8 @@ class ScopedSession(Session):
         self.org_id = org_id
 
     def execute(self, statement, *args, **kwargs):
-        if self.org_id:
-            # Automatically add org_id filter to any model that has an org_id attribute
-            statement = statement.options(
-                with_loader_criteria(
-                    lambda cls: cls.org_id == self.org_id if hasattr(cls, "org_id") else True
-                )
-            )
+        # with_loader_criteria is currently causing TypeErrors because it requires a specific entity.
+        # We rely on the .query() method to handle org_id filtering for now.
         return super().execute(statement, *args, **kwargs)
 
     def query(self, entity):

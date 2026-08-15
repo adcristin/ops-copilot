@@ -60,8 +60,16 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         )
 
     user_id = payload.get("sub")
-    # User.id is UUID, so we use the string as is (SQLAlchemy handles UUID strings)
-    user = db.query(User).filter(User.id == user_id).first()
+    try:
+        import uuid
+        user_uuid = uuid.UUID(user_id)
+    except (ValueError, TypeError):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid user ID format"
+        )
+    # Use the UUID object for the query
+    user = db.query(User).filter(User.id == user_uuid).first()
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
