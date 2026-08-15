@@ -96,27 +96,27 @@ function Sidebar({ tab, setTab, user, onLogout }: { tab: TabId; setTab: (id: Tab
           <Icon size={16} /> {label}
         </div>
       ))}
-      <Link
-        to="/account"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          padding: "10px 12px",
-          borderRadius: 8,
-          cursor: "pointer",
-          textAlign: "left",
-          background: "transparent",
-          color: TEXT_MUTED,
-          fontSize: 14,
-          fontWeight: 500,
-          textDecoration: "none",
-          marginTop: 4
-        }}
-      >
-        <UserIcon size={16} /> Account Settings
-      </Link>
       <div style={{ marginTop: "auto", padding: "16px 8px", borderTop: `1px solid ${BORDER}` }}>
+        <Link
+          to="/account"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "10px 12px",
+            borderRadius: 8,
+            cursor: "pointer",
+            textAlign: "left",
+            background: "transparent",
+            color: TEXT_MUTED,
+            fontSize: 14,
+            fontWeight: 500,
+            textDecoration: "none",
+            marginBottom: 16
+          }}
+        >
+          <UserIcon size={16} /> Account Settings
+        </Link>
         <div style={{ fontSize: 12, color: TEXT_MUTED, marginBottom: 8 }}>Signed in as:</div>
         <div style={{ fontSize: 13, color: TEXT_LIGHT, fontWeight: 600, marginBottom: 12 }}>{user.username} ({user.role})</div>
         <button onClick={onLogout} style={{ width: "100%", background: "transparent", border: `1px solid ${BORDER}`, color: TEXT_MUTED, padding: "8px", borderRadius: 8, cursor: "pointer", fontSize: 12 }}>Logout</button>
