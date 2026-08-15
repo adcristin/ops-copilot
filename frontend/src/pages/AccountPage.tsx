@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { User } from "../types";
 import { api } from "../api";
 import {
@@ -10,6 +11,7 @@ export default function AccountPage({ user: initialUser }: { user: User }) {
   const [user, setUser] = useState<User>(initialUser);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const navigate = useNavigate();
 
   // Profile form state
   const [profileForm, setProfileForm] = useState({
@@ -35,6 +37,9 @@ export default function AccountPage({ user: initialUser }: { user: User }) {
       const updatedUser = await api.updateProfile(profileForm);
       setUser(updatedUser);
       setMessage({ type: "success", text: "Profile updated successfully!" });
+      setTimeout(() => {
+        navigate("/dashboard");
+      }, 1500);
     } catch (e: any) {
       setMessage({ type: "error", text: e.message || "Failed to update profile" });
     } finally {
