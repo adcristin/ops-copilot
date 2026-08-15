@@ -23,7 +23,7 @@ from pydantic import BaseModel
 from typing import Optional
 
 from db.session import get_db, init_db
-from db.models import Agent, Call, QAScore, MailboxItem, Task, User
+from db.models import Organization, Agent, Call, QAScore, MailboxItem, Task, User
 from core.security import (
     verify_password, get_password_hash, create_access_token, decode_access_token,
     get_current_user, require_admin
@@ -266,8 +266,21 @@ def signup(payload: UserIn, db: Session = Depends(get_db)):
         if existing_user.email == payload.email:
             raise HTTPException(status_code=400, detail="Email already registered")
 
+    # Every user must belong to an organization.
+    # For signup, we create a personal organization for them.
+    personal_org = Organization(name=f"{payload.username}'s Organization")
+    db.add(personal_org)
+    db.commit()
+    db.refresh(personal_org)
+
     hashed_pw = get_password_hash(payload.password)
-    new_user = User(username=payload.username, email=payload.email, hashed_password=hashed_pw, role="user")
+    new_user = User(
+        username=payload.username,
+        email=payload.email,
+        hashed_password=hashed_pw,
+        role="user",
+        org_id=personal_org.id
+    )
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
@@ -356,7 +369,14 @@ async def handle_oauth_callback(provider: str, code: str, db: Session):
                 # Create new user
                 import uuid
                 username = f"user_{uuid.uuid4().hex[:8]}"
-                user = User(username=username, email=email, role="user")
+
+                # Every user must belong to an organization.
+                personal_org = Organization(name=f"{username}'s Organization")
+                db.add(personal_org)
+                db.commit()
+                db.refresh(personal_org)
+
+                user = User(username=username, email=email, role="user", org_id=personal_org.id)
                 if provider == "google": user.google_id = provider_id
                 else: user.github_id = provider_id
                 db.add(user)

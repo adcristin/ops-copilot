@@ -36,7 +36,7 @@ export default function App() {
       <Route element={<ProtectedRoute />}>
         <Route
           path="/dashboard"
-          element={user ? <DashboardPage user={user} onLogout={handleLogout} /> : <LoadingScreen />}
+          element={user ? <DashboardPage user={user} onLogout={handleLogout} /> : <LoadingScreen message="Waking up the server, this can take up to a minute..." />}
         />
       </Route>
       <Route path="*" element={<Navigate to="/" />} />

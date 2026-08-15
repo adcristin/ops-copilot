@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { UserPlus } from "lucide-react";
 import { useNavigate, Link } from "react-router-dom";
 import { api, API_BASE } from "../api";
 import SocialButton from "../components/SocialButton";
+import { LoadingScreen } from "../components/LoadingScreen";
 
 const BG = "#14171C";
 const PANEL = "#1B1F26";
@@ -14,7 +15,18 @@ export default function SignupPage() {
   const [form, setForm] = useState({ username: "", email: "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showColdStart, setShowColdStart] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (loading) {
+      timer = setTimeout(() => setShowColdStart(true), 2000);
+    } else {
+      setShowColdStart(false);
+    }
+    return () => clearTimeout(timer);
+  }, [loading]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,6 +46,10 @@ export default function SignupPage() {
   const oauthSignup = (provider: string) => {
     window.location.href = `${API_BASE}/auth/login/${provider}`;
   };
+
+  if (showColdStart) {
+    return <LoadingScreen message="Waking up the server, this can take up to a minute..." />;
+  }
 
   return (
     <div style={{
