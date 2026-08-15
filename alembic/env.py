@@ -1,11 +1,15 @@
 from logging.config import fileConfig
 import os
 import sys
+from dotenv import load_dotenv
 
 # Ensure the project root is in the path so we can import backend.db.models
 root_path = os.path.join(os.path.dirname(__file__), "..")
 if root_path not in sys.path:
     sys.path.insert(0, root_path)
+
+# Load environment variables from .env (located in backend/ folder)
+load_dotenv(os.path.join(root_path, "backend", ".env"))
 
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
