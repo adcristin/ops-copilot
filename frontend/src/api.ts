@@ -102,6 +102,16 @@ export const api = {
   },
 
   me: () => request<User>("/auth/me"),
+  updateProfile: (data: Partial<User>) =>
+    request<User>("/auth/me", {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  changePassword: (data: { current_password: string; new_password: string }) =>
+    request<{ detail: string }>("/auth/change-password", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
   signup: (data: { username: string; email: string; password: string }) =>
     request<User>("/auth/signup", {
       method: "POST",

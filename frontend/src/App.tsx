@@ -5,6 +5,7 @@ import SignupPage from "./pages/SignupPage";
 import LoginPage from "./pages/LoginPage";
 import AuthCallbackPage from "./pages/AuthCallbackPage";
 import DashboardPage from "./pages/DashboardPage";
+import AccountPage from "./pages/AccountPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { PublicRoute } from "./components/PublicRoute";
 import { LoadingScreen } from "./components/LoadingScreen";
@@ -37,6 +38,10 @@ export default function App() {
         <Route
           path="/dashboard"
           element={user ? <DashboardPage user={user} onLogout={handleLogout} /> : <LoadingScreen message="Waking up the server, this can take up to a minute..." />}
+        />
+        <Route
+          path="/account"
+          element={user ? <AccountPage user={user} /> : <LoadingScreen message="Loading account settings..." />}
         />
       </Route>
       <Route path="*" element={<Navigate to="/" />} />

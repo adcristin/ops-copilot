@@ -92,6 +92,17 @@ class UserOut(BaseModel):
         from_attributes = True
 
 
+class UserUpdate(BaseModel):
+    username: Optional[str] = None
+    email: Optional[str] = None
+
+
+class PasswordChange(BaseModel):
+    current_password: str
+    new_password: str
+
+
+
 class Token(BaseModel):
     access_token: str
     token_type: str
@@ -254,6 +265,38 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
 @app.get("/auth/me", response_model=UserOut)
 def get_me(current_user: User = Depends(get_current_user)):
     return current_user
+
+
+@app.patch("/auth/me", response_model=UserOut)
+def update_me(payload: UserUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Update current user profile."""
+    if payload.username:
+        existing = db.query(User).filter(User.username == payload.username, User.id != current_user.id).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Username already taken")
+        current_user.username = payload.username
+
+    if payload.email:
+        existing = db.query(User).filter(User.email == payload.email, User.id != current_user.id).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Email already taken")
+        current_user.email = payload.email
+
+    db.commit()
+    db.refresh(current_user)
+    return current_user
+
+
+@app.post("/auth/change-password")
+def change_password(payload: PasswordChange, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Change current user password."""
+    if not verify_password(payload.current_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Incorrect current password")
+
+    current_user.hashed_password = get_password_hash(payload.new_password)
+    db.commit()
+    return {"detail": "Password updated successfully"}
+
 
 
 @app.post("/auth/signup", response_model=UserOut)
