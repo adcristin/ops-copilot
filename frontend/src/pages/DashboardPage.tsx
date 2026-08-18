@@ -44,11 +44,10 @@ function LiveBadge({ isLive }: { isLive: boolean }) {
 }
 
 function Sidebar({ tab, setTab, user, onLogout }: { tab: TabId; setTab: (id: TabId) => void; user: User; onLogout: () => void }) {
-  const items: { id: TabId | "account"; label: string; icon: any }[] = [
+  const items: { id: TabId; label: string; icon: any }[] = [
     { id: "dashboard", label: "QA Dashboard", icon: Phone },
     { id: "inbox", label: "Mailbox", icon: InboxIcon },
     { id: "tasks", label: "Tasks", icon: ListChecks },
-    { id: "account", label: "Account Settings", icon: UserIcon },
   ];
   return (
     <div style={{ width: 220, background: PANEL, borderRight: `1px solid ${BORDER}`, padding: "24px 16px", display: "flex", flexDirection: "column", gap: 4 }}>
@@ -78,7 +77,7 @@ function Sidebar({ tab, setTab, user, onLogout }: { tab: TabId; setTab: (id: Tab
       {items.map(({ id, label, icon: Icon }) => (
         <div
           key={id}
-          onClick={() => id === "account" ? window.location.href = "/account" : setTab(id)}
+          onClick={() => setTab(id)}
           style={{
             display: "flex",
             alignItems: "center",
@@ -98,7 +97,25 @@ function Sidebar({ tab, setTab, user, onLogout }: { tab: TabId; setTab: (id: Tab
         </div>
       ))}
       <div style={{ marginTop: "auto", padding: "16px 8px", borderTop: `1px solid ${BORDER}` }}>
-        {/* User section removed as per requirements */}
+        <Link
+          to="/account"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "10px 12px",
+            borderRadius: 8,
+            cursor: "pointer",
+            textAlign: "left",
+            background: "transparent",
+            color: TEXT_MUTED,
+            fontSize: 14,
+            fontWeight: 500,
+            textDecoration: "none"
+          }}
+        >
+          <UserIcon size={16} /> Account Settings
+        </Link>
       </div>
     </div>
   );

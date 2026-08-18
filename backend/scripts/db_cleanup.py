@@ -16,7 +16,7 @@ def cleanup():
             ("calls", "Admins can delete calls in their org"),
             ("calls", "Admins can update calls in their org"),
             ("calls", "Users can view calls in their orgs"),
-            ("call_scores", "Users can view scores for calls in their orgs"),
+            ("qa_scores", "Users can view scores for calls in their orgs"),
         ]
         for table, policy in policies:
             try:
@@ -26,7 +26,7 @@ def cleanup():
                 print(f"Error dropping policy {policy} on {table}: {e}")
 
         print("\n--- Disabling RLS ---")
-        tables_with_rls = ["organizations", "users_orgs", "agents", "calls", "call_scores"]
+        tables_with_rls = ["organizations", "users_orgs", "agents", "calls", "qa_scores"]
         for table in tables_with_rls:
             try:
                 conn.execute(text(f"ALTER TABLE {table} DISABLE ROW LEVEL SECURITY;"))

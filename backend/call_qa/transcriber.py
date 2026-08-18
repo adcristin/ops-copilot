@@ -12,35 +12,26 @@ Model size tradeoff:
 For a portfolio demo, "base" is a good default - runs on CPU in a few seconds
 per minute of audio.
 """
-import whisper
-import functools
+import os
+from openai import OpenAI
 
-_MODEL_CACHE = {}
+def get_openai_client():
+    return OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-
-@functools.lru_cache(maxsize=None)
-def _load_model(model_size: str = "base"):
-    return whisper.load_model(model_size)
-
-
-def transcribe_audio(audio_path: str, model_size: str = "base", language: str = "en") -> dict:
+def transcribe_audio(audio_path: str, language: str = "en") -> dict:
     """
-    Transcribe an audio file to text.
-    Returns {"text": full transcript, "segments": [...], "language": detected}
+    Transcribe an audio file to text using OpenAI Whisper API.
+    Returns {"text": full transcript, "language": detected}
     """
-    model = _load_model(model_size)
-    result = model.transcribe(audio_path, language=language, fp16=False)
+    client = get_openai_client()
+    with open(audio_path, "rb") as audio_file:
+        transcript = client.audio.transcriptions.create(
+            file=audio_file,
+            model="whisper-1",
+            language=language
+        )
+
     return {
-        "text": result["text"].strip(),
-        "segments": result.get("segments", []),
-        "language": result.get("language", language),
+        "text": transcript.text.strip(),
+        "language": language,
     }
-
-
-if __name__ == "__main__":
-    import sys
-    if len(sys.argv) < 2:
-        print("Usage: python transcriber.py <audio_file_path>")
-        sys.exit(1)
-    out = transcribe_audio(sys.argv[1])
-    print(out["text"])

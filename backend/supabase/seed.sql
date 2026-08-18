@@ -50,7 +50,7 @@ INSERT INTO calls (id, org_id, agent_id, call_date, duration_seconds, status) VA
 (gen_random_uuid(), 'a2222222-2222-2222-2222-222222222222', 'b4444444-4444-4444-4444-444444444444', '2026-08-05 16:00:00Z', 290, 'scored');
 
 -- 4. Create Scores
-INSERT INTO call_scores (call_id, greeting_score, compliance_score, resolution_score, tone_score, flagged, flag_reason, rubric_notes)
+INSERT INTO qa_scores (call_id, greeting_score, compliance_score, resolution_score, tone_score, flagged, coaching_notes, violations)
 SELECT
     id,
     (random() * 30 + 70),

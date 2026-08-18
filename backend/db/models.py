@@ -53,6 +53,8 @@ class Call(Base):
     transcript = Column(Text)
     duration_seconds = Column(Integer)
     call_date = Column(DateTime, default=datetime.utcnow)
+    status = Column(String(20), default="pending") # pending/transcribing/scoring/completed/failed
+    error_reason = Column(Text, nullable=True)
 
     organization = relationship("Organization", back_populates="calls")
     agent = relationship("Agent", back_populates="calls")

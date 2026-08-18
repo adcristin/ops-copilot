@@ -10,7 +10,8 @@ sys.path.insert(0, os.path.dirname(__file__))
 from dotenv import load_dotenv
 load_dotenv()  # reads backend/.env into os.environ before any other import touches it
 
-from datetime import datetime
+from datetime import datetime, time
+from uuid import UUID
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, RedirectResponse
@@ -20,7 +21,7 @@ import httpx
 import tempfile
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 
 from db.session import get_db, init_db
 from db.models import Organization, Agent, Call, QAScore, MailboxItem, Task, User
@@ -29,7 +30,9 @@ from core.security import (
     get_current_user, require_admin
 )
 from core.dependencies import get_scoped_db
+from schemas import CallOut, CallListOut, CallDetailOut, CallCreate
 from call_qa.scorer import score_and_explain
+from call_qa.transcriber import transcribe_audio
 from mailbox_ops.classifier import classify_email
 from tasks.service import (
     create_task_from_qa_flag,
@@ -113,8 +116,69 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 
 # ---------- Background Workers ----------
 
+def process_call_ingestion(call_id: str, org_id: str, audio_path: Optional[str], transcript: Optional[str]):
+    """Async pipeline: transcription -> scoring -> QA task creation."""
+    from uuid import UUID
+    db = next(get_db())
+    try:
+        call_uuid = UUID(call_id)
+        org_uuid = UUID(org_id)
+        call = db.query(Call).filter(Call.id == call_uuid).first()
+        if not call:
+            return
 
-# ---------- Background Workers ----------
+        # 1. Transcription Phase
+        if audio_path:
+            call.status = "transcribing"
+            db.commit()
+
+            transcription_result = transcribe_audio(audio_path)
+            call.transcript = transcription_result["text"]
+            db.commit()
+
+        # 2. Scoring Phase
+        if not call.transcript:
+            raise ValueError("No transcript available for scoring")
+
+        call.status = "scoring"
+        db.commit()
+
+        score_result = score_and_explain(call.transcript)
+
+        qa_score = QAScore(
+            call_id=call.id,
+            overall_score=score_result["overall_score"],
+            greeting_score=score_result["greeting_score"],
+            compliance_score=score_result["compliance_score"],
+            resolution_score=score_result["resolution_score"],
+            tone_score=score_result["tone_score"],
+            sentiment=score_result["sentiment"],
+            flagged=score_result["flagged"],
+            violations=score_result.get("violations", []),
+            coaching_notes=score_result.get("coaching_notes", ""),
+            raw_llm_response=score_result.get("raw_llm_response", {}),
+        )
+        db.add(qa_score)
+        db.commit()
+
+        # 3. QA Task Integration
+        if qa_score.flagged:
+            create_task_from_qa_flag(db, qa_score)
+
+        call.status = "completed"
+        db.commit()
+
+    except Exception as e:
+        # Ensure we use UUID for the update filter as well
+        from uuid import UUID as UUIDType
+        try:
+            cid = UUIDType(call_id)
+        except:
+            cid = call_id
+        db.query(Call).filter(Call.id == cid).update({"status": "failed", "error_reason": str(e)})
+        db.commit()
+    finally:
+        db.close()
 
 def run_bg_score_call(task_id: str, payload: TranscriptIn, org_id: str):
     """Background worker for /calls/score"""
@@ -483,45 +547,98 @@ def list_agents(db: Session = Depends(get_scoped_db), current_user: User = Depen
 
 # ---------- Call QA ----------
 
-@app.post("/calls/score", status_code=202)
-def score_call(payload: TranscriptIn, background_tasks: BackgroundTasks, db: Session = Depends(get_scoped_db), current_user: User = Depends(get_current_user)):
-    """Ingest a transcript and schedule it for LLM rubric scoring."""
-    task_id = create_background_task(db)
-    background_tasks.add_task(run_bg_score_call, task_id, payload, current_user.org_id)
-    return {"task_id": task_id, "status": "accepted"}
-
-
-@app.post("/calls/transcribe-and-score", status_code=202)
-def transcribe_and_score(
+@app.post("/api/calls/upload", status_code=202)
+def upload_call(
     background_tasks: BackgroundTasks,
-    agent_id: int = Form(...),
+    agent_id: UUID = Form(...),
     customer_ref: Optional[str] = Form(None),
-    audio: UploadFile = File(...),
+    audio: UploadFile = File(None),
+    transcript: Optional[str] = Form(None),
     db: Session = Depends(get_scoped_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Full pipeline: upload audio -> Whisper transcription -> LLM rubric scoring -> store."""
-    with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(audio.filename)[1]) as tmp:
-        shutil.copyfileobj(audio.file, tmp)
-        tmp_path = tmp.name
+    """Unified ingestion: upload audio or transcript -> Async processing -> Scoring."""
+    if not audio and not transcript:
+        raise HTTPException(status_code=400, detail="Either audio file or transcript must be provided")
 
-    task_id = create_background_task(db)
-    background_tasks.add_task(run_bg_transcribe_and_score, task_id, agent_id, customer_ref, tmp_path, current_user.org_id)
+    audio_path = None
+    if audio:
+        # Use a temporary file for processing
+        with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(audio.filename)[1]) as tmp:
+            shutil.copyfileobj(audio.file, tmp)
+            audio_path = tmp.name
 
-    return {"task_id": task_id, "status": "accepted"}
+    call = Call(
+        org_id=current_user.org_id,
+        agent_id=agent_id,
+        customer_ref=customer_ref,
+        audio_path=audio_path,
+        transcript=transcript,
+        status="pending"
+    )
+    db.add(call)
+    db.commit()
+    db.refresh(call)
 
+    background_tasks.add_task(process_call_ingestion, str(call.id), str(current_user.org_id), audio_path, transcript)
 
-@app.get("/calls/{call_id}")
-def get_call(call_id: int, db: Session = Depends(get_scoped_db), current_user: User = Depends(get_current_user)):
-    call = db.query(Call).get(call_id)
+    return {"call_id": call.id, "status": call.status}
+
+@app.get("/api/calls/{call_id}", response_model=CallDetailOut)
+def get_call(call_id: UUID, db: Session = Depends(get_scoped_db), current_user: User = Depends(get_current_user)):
+    call = db.query(Call).filter(Call.id == call_id).first()
     if not call:
         raise HTTPException(404, "Call not found")
-    return call
+
+    # Join with QAScore for the detail view
+    qa_score = db.query(QAScore).filter(QAScore.call_id == call.id).first()
+
+    return {**call.__dict__, "qa_score": qa_score}
 
 
-@app.get("/calls")
-def list_calls(db: Session = Depends(get_scoped_db), current_user: User = Depends(get_current_user)):
-    return db.query(Call).order_by(Call.call_date.desc()).all()
+@app.get("/api/calls", response_model=List[CallListOut])
+def list_calls(
+    db: Session = Depends(get_scoped_db),
+    current_user: User = Depends(get_current_user),
+    agent_id: Optional[UUID] = None,
+    status: Optional[str] = None,
+    flagged: Optional[bool] = None,
+    start_date: Optional[datetime] = None,
+    end_date: Optional[datetime] = None,
+    limit: int = 20,
+    offset: int = 0,
+):
+    """Paginated and filterable list of calls for the user's organization."""
+    query = db.query(Call)
+
+    # --- FILTERING LOGIC ---
+    if agent_id is not None:
+        query = query.filter(Call.agent_id == agent_id)
+
+    if status is not None:
+        query = query.filter(Call.status == status)
+
+    if flagged is not None:
+        # Only join when flagged is actually requested — an unconditional join
+        # would silently drop every call that has no QAScore row yet (i.e. any
+        # call still 'pending'/'transcribing'/'scoring'), even when nobody
+        # asked to filter by flag status at all.
+        query = query.join(QAScore).filter(QAScore.flagged == flagged)
+
+    if start_date is not None:
+        query = query.filter(Call.call_date >= start_date)
+
+    if end_date is not None:
+        # If end_date arrives as a bare date (midnight, no time component),
+        # a plain <= comparison excludes everything later that same day.
+        # Push the boundary to the start of the next day and use < instead,
+        # so the entire end_date calendar day is included regardless of
+        # whether the caller passed a date or a full timestamp.
+        end_of_day = datetime.combine(end_date.date(), time.max)
+        query = query.filter(Call.call_date <= end_of_day)
+    # -----------------------
+
+    return query.order_by(Call.call_date.desc()).offset(offset).limit(limit).all()
 
 
 # ---------- Mailbox ----------
