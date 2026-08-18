@@ -22,6 +22,7 @@ def create_task_from_qa_flag(db: Session, qa_score: QAScore) -> Task:
             f"Violations: {qa_score.violations}\n"
             f"Coaching notes: {qa_score.coaching_notes}"
         ),
+        org_id=call.org_id,
         status="open",
         priority="high" if qa_score.overall_score < 50 else "medium",
         due_date=datetime.utcnow() + timedelta(days=2),
