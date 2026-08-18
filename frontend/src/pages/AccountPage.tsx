@@ -7,7 +7,7 @@ import {
 } from "../styles";
 import { User as UserIcon, Lock, Save, AlertCircle, CheckCircle } from "lucide-react";
 
-export default function AccountPage({ user: initialUser }: { user: User }) {
+export default function AccountPage({ user: initialUser, onLogout }: { user: User; onLogout: () => void }) {
   const [user, setUser] = useState<User>(initialUser);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
@@ -258,6 +258,34 @@ export default function AccountPage({ user: initialUser }: { user: User }) {
                 <Lock size={16} /> {loading ? "Updating..." : "Update Password"}
               </button>
             </div>
+          </div>
+
+          {/* Session Section */}
+          <div style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: 12, padding: 24 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
+              <UserIcon size={20} color={ACCENT} />
+              <h2 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>Session Management</h2>
+            </div>
+            <button
+              onClick={onLogout}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+                background: "transparent",
+                color: RED,
+                border: `1px solid ${RED}`,
+                padding: "12px",
+                borderRadius: 8,
+                fontWeight: 600,
+                cursor: "pointer",
+                fontSize: 14,
+                width: "100%"
+              }}
+            >
+              Logout of Account
+            </button>
           </div>
         </div>
       </div>

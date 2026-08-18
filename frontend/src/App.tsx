@@ -41,7 +41,7 @@ export default function App() {
         />
         <Route
           path="/account"
-          element={user ? <AccountPage user={user} /> : <LoadingScreen message="Loading account settings..." />}
+          element={user ? <AccountPage user={user} onLogout={handleLogout} /> : <LoadingScreen message="Loading account settings..." />}
         />
       </Route>
       <Route path="*" element={<Navigate to="/" />} />
