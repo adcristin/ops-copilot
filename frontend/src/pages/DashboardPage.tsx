@@ -43,7 +43,7 @@ function LiveBadge({ isLive }: { isLive: boolean }) {
   return <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 6, fontWeight: 600, color: isLive ? OK : TEXT_MUTED, border: `1px solid ${isLive ? OK : BORDER}` }}>{isLive ? "● live data" : "○ demo data"}</span>;
 }
 
-function Sidebar({ tab, setTab, user, onLogout }: { tab: TabId; setTab: (id: TabId) => void; user: User; onLogout: () => void }) {
+function Sidebar({ tab, setTab, onLogout }: { tab: TabId; setTab: (id: TabId) => void; onLogout: () => void }) {
   const items: { id: TabId; label: string; icon: any }[] = [
     { id: "dashboard", label: "QA Dashboard", icon: Phone },
     { id: "inbox", label: "Mailbox", icon: InboxIcon },
@@ -116,6 +116,27 @@ function Sidebar({ tab, setTab, user, onLogout }: { tab: TabId; setTab: (id: Tab
         >
           <UserIcon size={16} /> Account Settings
         </Link>
+        <button
+          type="button"
+          onClick={onLogout}
+          style={{
+            width: "100%",
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "10px 12px",
+            border: 0,
+            borderRadius: 8,
+            background: "transparent",
+            color: TEXT_MUTED,
+            fontSize: 14,
+            fontWeight: 500,
+            cursor: "pointer",
+            textAlign: "left",
+          }}
+        >
+          Logout
+        </button>
       </div>
     </div>
   );
@@ -261,6 +282,16 @@ function TasksTab() {
     api.listTasks().then(setTasks).catch(console.error);
   }, []);
 
+  async function handleCloseTask(taskId: number) {
+    try {
+      await api.closeTask(taskId);
+      const updated = await api.listTasks();
+      setTasks(updated);
+    } catch (e) {
+      console.error("Failed to close task:", e);
+    }
+  }
+
   const columns: TaskStatus[] = ["open", "in_progress", "done"];
   const labels: Record<TaskStatus, string> = { open: "Open", in_progress: "In Progress", blocked: "Blocked", done: "Done" };
 
@@ -286,6 +317,25 @@ function TasksTab() {
                     <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 5, fontWeight: 700, color: priorityColor[t.priority], border: `1px solid ${priorityColor[t.priority]}` }}>{t.priority.toUpperCase()}</span>
                     {t.status === "done" ? <CheckCircle2 size={13} color={OK} /> : t.source_type === "qa_flag" ? <span style={{ fontSize: 11, color: TEXT_MUTED }}>{t.agent}</span> : t.source_type === "mailbox_escalation" ? <span style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 11, color: TEXT_MUTED }}><AlertTriangle size={11} /> mailbox</span> : null}
                   </div>
+                  {t.status !== "done" && (
+                    <div style={{ marginTop: 12, display: "flex", justifyContent: "flex-end" }}>
+                      <button
+                        onClick={() => handleCloseTask(t.id)}
+                        style={{
+                          fontSize: 11,
+                          padding: "4px 8px",
+                          borderRadius: 6,
+                          background: "transparent",
+                          border: `1px solid ${BORDER}`,
+                          color: TEXT_MUTED,
+                          cursor: "pointer",
+                          fontWeight: 600,
+                        }}
+                      >
+                        Mark Done
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -297,10 +347,11 @@ function TasksTab() {
 }
 
 export default function DashboardPage({ user, onLogout }: { user: User; onLogout: () => void }) {
+  void user;
   const [tab, setTab] = useState<TabId>("dashboard");
   return (
     <div style={{ display: "flex", height: "100vh", background: BG, fontFamily: "'Inter', -apple-system, sans-serif" }}>
-      <Sidebar tab={tab} setTab={setTab} user={user} onLogout={onLogout} />
+      <Sidebar tab={tab} setTab={setTab} onLogout={onLogout} />
       {tab === "dashboard" && <Dashboard />}
       {tab === "inbox" && <InboxTab />}
       {tab === "tasks" && <TasksTab />}

@@ -8,15 +8,15 @@ import {
 import { User as UserIcon, Lock, Save, AlertCircle, CheckCircle } from "lucide-react";
 
 export default function AccountPage({ user: initialUser, onLogout }: { user: User; onLogout: () => void }) {
-  const [user, setUser] = useState<User>(initialUser);
+  const [, setUser] = useState<User>(initialUser);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const navigate = useNavigate();
 
   // Profile form state
-  const [profileForm, setProfileForm] = useState({
+  const [profileForm, setProfileForm] = useState<{ username: string; email: string }>({
     username: initialUser.username,
-    email: initialUser.email || "",
+    email: (initialUser as User & { email?: string }).email || "",
   });
 
   // Password form state
@@ -95,8 +95,8 @@ export default function AccountPage({ user: initialUser, onLogout }: { user: Use
             borderRadius: 8,
             marginBottom: 24,
             background: message.type === "success" ? "rgba(76, 154, 141, 0.1)" : "rgba(196, 87, 63, 0.1)",
-            border: `1px solid ${message.type === "success" ? OK : RED}`,
-            color: message.type === "success" ? OK : RED,
+            border: `1px solid ${message.type === "success" ? ACCENT : RED}`,
+            color: message.type === "success" ? ACCENT : RED,
             fontSize: 14,
             fontWeight: 500
           }}>
