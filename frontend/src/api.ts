@@ -64,7 +64,10 @@ function getToken(): string | null {
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getToken();
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const headers: Record<string, string> = {};
+  if (!(options.body instanceof FormData)) {
+    headers["Content-Type"] = "application/json";
+  }
 
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
@@ -126,6 +129,11 @@ export const api = {
     request<Agent>("/agents", { method: "POST", body: JSON.stringify(payload) }),
 
   listCalls: () => request<Call[]>("/calls"),
+  uploadCall: (formData: FormData) =>
+    request<{ call_id: string; status: string }>("/api/calls/upload", {
+      method: "POST",
+      body: formData,
+    }),
   scoreCall: (payload: { agent_id: number; customer_ref?: string; transcript: string }) =>
     request<{ task_id: string; status: string }>("/calls/score", {
       method: "POST",

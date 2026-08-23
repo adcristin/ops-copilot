@@ -6,9 +6,10 @@ import {
 } from "recharts";
 import {
   Phone, ListChecks, AlertTriangle, CheckCircle2, Clock,
-  FileSpreadsheet, Presentation, ChevronRight, Inbox as InboxIcon, User as UserIcon
+  FileSpreadsheet, Presentation, ChevronRight, Inbox as InboxIcon, User as UserIcon, Upload
 } from "lucide-react";
 import { api } from "../api";
+import CallIngestionModal from "../components/CallIngestionModal";
 import type {
   AgentPerformance, MailboxItem, Task, TaskStatus, Priority, MailboxCategory, User
 } from "../types";
@@ -149,6 +150,7 @@ function StatCard({ label, value, sub, color }: { label: string; value: string |
 function Dashboard() {
   const [agents, setAgents] = useState<AgentPerformance[]>(MOCK_AGENTS);
   const [loading, setLoading] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     async function fetchAgents() {
@@ -191,6 +193,12 @@ function Dashboard() {
           <p style={{ color: TEXT_MUTED, fontSize: 13 }}>Auto-scored via LLM rubric across greeting, compliance, resolution, and tone.</p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
+          <button
+            onClick={() => setIsModalOpen(true)}
+            style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, padding: "8px 12px", borderRadius: 8, border: `1px solid ${ACCENT}`, background: "transparent", color: ACCENT, cursor: "pointer" }}
+          >
+            <Upload size={14} /> Upload Call
+          </button>
           <a href={api.reportUrls.excel()} style={{ textDecoration: "none" }}><button style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 500, padding: "8px 12px", borderRadius: 8, border: `1px solid ${BORDER}`, background: PANEL, color: TEXT_MUTED, cursor: "pointer" }}><FileSpreadsheet size={14} /> Export Excel</button></a>
           <a href={api.reportUrls.pptx()} style={{ textDecoration: "none" }}><button style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 500, padding: "8px 12px", borderRadius: 8, border: `1px solid ${BORDER}`, background: PANEL, color: TEXT_MUTED, cursor: "pointer" }}><Presentation size={14} /> Export Slides</button></a>
         </div>
@@ -215,6 +223,7 @@ function Dashboard() {
           </div>
         </div>
       </div>
+      <CallIngestionModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </div>
   );
 }
