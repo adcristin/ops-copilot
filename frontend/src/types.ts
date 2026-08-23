@@ -87,7 +87,10 @@ export interface MailboxItem {
   status: MailboxStatus;
   sla_hours: number;
   suggested_reply?: string;
+  reasoning?: string;
+  final_reply?: string;
   routed_to?: string;
+}
 }
 
 export interface Task {

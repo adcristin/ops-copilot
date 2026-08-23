@@ -5,7 +5,7 @@ import {
   PieChart, Pie, Cell,
 } from "recharts";
 import {
-  Phone, ListChecks, AlertTriangle, CheckCircle2, Clock,
+  Phone, ListChecks, AlertTriangle, CheckCircle2,
   FileSpreadsheet, Presentation, ChevronRight, Inbox as InboxIcon, User as UserIcon, Upload
 } from "lucide-react";
 import { api } from "../api";
@@ -230,11 +230,20 @@ function Dashboard() {
 
 function InboxTab() {
   const [items, setItems] = useState<MailboxItem[]>(MOCK_MAILBOX);
+  const [selectedItem, setSelectedItem] = useState<MailboxItem | null>(null);
+  const [replyText, setReplyText] = useState("");
   const [processing, setProcessing] = useState(false);
+  const [sending, setSending] = useState(false);
 
   useEffect(() => {
     api.listMailbox().then(setItems).catch(console.error);
   }, []);
+
+  useEffect(() => {
+    if (selectedItem) {
+      setReplyText(selectedItem.suggested_reply || "");
+    }
+  }, [selectedItem]);
 
   async function handleIngest() {
     setProcessing(true);
@@ -255,6 +264,21 @@ function InboxTab() {
     } catch (e) { setProcessing(false); }
   }
 
+  async function handleSendReply() {
+    if (!selectedItem) return;
+    setSending(true);
+    try {
+      await api.sendMailboxReply(selectedItem.id, { reply: replyText });
+      const updated = await api.listMailbox();
+      setItems(updated);
+      setSelectedItem(null);
+    } catch (e) {
+      console.error("Failed to send reply:", e);
+    } finally {
+      setSending(false);
+    }
+  }
+
   return (
     <div style={{ padding: 32, flex: 1, overflowY: "auto" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
@@ -266,19 +290,93 @@ function InboxTab() {
           {processing ? "Processing AI..." : "Simulate Ingestion"}
         </button>
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {items.map((m) => (
-          <div key={m.id} style={{ background: PANEL, border: `1px solid ${BORDER}`, borderRadius: 10, padding: "14px 18px", display: "flex", alignItems: "center", gap: 16 }}>
-            <span style={{ width: 8, height: 8, borderRadius: "50%", background: priorityColor[m.priority], flexShrink: 0 }} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 14, color: TEXT_LIGHT, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{m.subject}</div>
-              <div style={{ fontSize: 12, color: TEXT_MUTED, marginTop: 2 }}>{m.sender}</div>
+      <div style={{ display: "flex", gap: 20, height: "calc(100vh - 150px)" }}>
+        <div style={{ width: 400, display: "flex", flexDirection: "column", gap: 10, overflowY: "auto" }}>
+          {items.map((m) => (
+            <div
+              key={m.id}
+              onClick={() => setSelectedItem(m)}
+              style={{
+                background: selectedItem?.id === m.id ? DARK_PANEL : PANEL,
+                border: `1px solid ${selectedItem?.id === m.id ? ACCENT : BORDER}`,
+                borderRadius: 10,
+                padding: "14px 18px",
+                display: "flex",
+                alignItems: "center",
+                gap: 16,
+                cursor: "pointer",
+                transition: "all 0.2s"
+              }}
+            >
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: priorityColor[m.priority], flexShrink: 0 }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 14, color: TEXT_LIGHT, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{m.subject}</div>
+                <div style={{ fontSize: 12, color: TEXT_MUTED, marginTop: 2 }}>{m.sender}</div>
+              </div>
+              <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 6, fontWeight: 600, color: BG, background: DARK_PANEL, flexShrink: 0 }}>{CATEGORY_LABELS[m.category]}</span>
+              <ChevronRight size={16} color={TEXT_MUTED} />
             </div>
-            <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 6, fontWeight: 600, color: BG, background: DARK_PANEL, flexShrink: 0 }}>{CATEGORY_LABELS[m.category]}</span>
-            <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: TEXT_MUTED, flexShrink: 0 }}><Clock size={12} /> SLA {m.sla_hours}h</span>
-            <ChevronRight size={16} color={TEXT_MUTED} />
-          </div>
-        ))}
+          ))}
+        </div>
+        <div style={{ flex: 1, background: PANEL, border: `1px solid ${BORDER}`, borderRadius: 12, padding: 24, overflowY: "auto" }}>
+          {selectedItem ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+              <div>
+                <h2 style={{ fontSize: 20, fontWeight: 700, color: TEXT_LIGHT, margin: "0 0 8px 0" }}>{selectedItem.subject}</h2>
+                <div style={{ fontSize: 13, color: TEXT_MUTED }}>From: {selectedItem.sender} • Received: {new Date(selectedItem.received_at).toLocaleString()}</div>
+              </div>
+              <div style={{ background: BG, border: `1px solid ${BORDER}`, borderRadius: 8, padding: 16, fontSize: 14, color: TEXT_LIGHT, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+                {selectedItem.body || "No email body content available."}
+              </div>
+              <div style={{ background: DARK_PANEL, borderLeft: `4px solid ${ACCENT}`, borderRadius: 4, padding: 16 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: ACCENT, textTransform: "uppercase", marginBottom: 8 }}>AI Reasoning</div>
+                <div style={{ fontSize: 14, color: TEXT_LIGHT, fontStyle: "italic" }}>{selectedItem.reasoning || "No AI reasoning available for this item."}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: TEXT_LIGHT, marginBottom: 12 }}>Draft Reply</div>
+                <textarea
+                  value={replyText}
+                  onChange={(e) => setReplyText(e.target.value)}
+                  style={{
+                    width: "100%",
+                    height: 150,
+                    background: BG,
+                    border: `1px solid ${BORDER}`,
+                    borderRadius: 8,
+                    padding: 12,
+                    color: TEXT_LIGHT,
+                    fontSize: 14,
+                    fontFamily: "'Inter', sans-serif",
+                    resize: "vertical",
+                    outline: "none"
+                  }}
+                />
+                <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
+                  <button
+                    onClick={handleSendReply}
+                    disabled={sending}
+                    style={{
+                      background: ACCENT,
+                      color: BG,
+                      border: "none",
+                      padding: "10px 20px",
+                      borderRadius: 8,
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      fontSize: 14
+                    }}
+                  >
+                    {sending ? "Sending..." : "Send Reply"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: TEXT_MUTED, fontSize: 14, textAlign: "center" }}>
+              Select an email from the list to view details and draft a response.
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

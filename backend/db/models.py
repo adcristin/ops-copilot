@@ -111,6 +111,8 @@ class MailboxItem(Base):
     responded_at = Column(DateTime, nullable=True)
 
     suggested_reply = Column(Text)
+    reasoning = Column(Text)
+    final_reply = Column(Text)
     routed_to = Column(String(120))                # stakeholder/team name
 
     organization = relationship("Organization", back_populates="mailbox_items")

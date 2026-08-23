@@ -141,6 +141,11 @@ export const api = {
     }),
 
   listMailbox: () => request<MailboxItem[]>("/mailbox"),
+  sendMailboxReply: (itemId: number | string, payload: { reply: string }) =>
+    request<{ detail: string }>(`/mailbox/${itemId}/reply`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
   ingestEmail: (payload: { sender: string; subject: string; body: string }) =>
     request<{ task_id: string; status: string }>("/mailbox", {
       method: "POST",

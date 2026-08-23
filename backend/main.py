@@ -72,6 +72,10 @@ class EmailIn(BaseModel):
     body: str
 
 
+class EmailReplyIn(BaseModel):
+    reply: str
+
+
 class AgentIn(BaseModel):
     name: str
     email: str
@@ -293,6 +297,7 @@ def run_bg_ingest_email(task_id: str, payload: EmailIn, org_id: str):
             sla_hours=result["sla_hours"],
             routed_to=result["routed_to"],
             suggested_reply=result["suggested_reply"],
+            reasoning=result["reasoning"],
             status="drafted",
         )
         db.add(item)
@@ -654,6 +659,21 @@ def ingest_email(payload: EmailIn, background_tasks: BackgroundTasks, db: Sessio
 @app.get("/mailbox")
 def list_mailbox(db: Session = Depends(get_scoped_db), current_user: User = Depends(get_current_user)):
     return db.query(MailboxItem).order_by(MailboxItem.received_at.desc()).all()
+
+
+@app.post("/mailbox/{item_id}/reply")
+def send_mailbox_reply(item_id: UUID, payload: EmailReplyIn, db: Session = Depends(get_scoped_db), current_user: User = Depends(get_current_user)):
+    """Marks an email as replied and stores the final response."""
+    item = db.query(MailboxItem).filter(MailboxItem.id == item_id, MailboxItem.org_id == current_user.org_id).first()
+    if not item:
+        raise HTTPException(404, "Mailbox item not found")
+
+    item.final_reply = payload.reply
+    item.status = "replied"
+    item.responded_at = datetime.utcnow()
+    db.commit()
+    db.refresh(item)
+    return {"detail": "Reply sent successfully", "item_id": item.id}
 
 
 # ---------- Tasks ----------
