@@ -4,3 +4,17 @@ INFO:     Application startup complete.
 ERROR:    [Errno 10048] error while attempting to bind on address ('127.0.0.1', 8000): [winerror 10048] only one usage of each socket address (protocol/network address/port) is normally permitted
 INFO:     Waiting for application shutdown.
 INFO:     Application shutdown complete.
+2026-08-23 12:49:08,716 [INFO] httpx: HTTP Request: GET http://testserver/ "HTTP/1.1 200 OK"
+2026-08-23 12:49:08,731 [INFO] httpx: HTTP Request: GET http://testserver/agents "HTTP/1.1 401 Unauthorized"
+2026-08-23 12:49:09,602 [INFO] httpx: HTTP Request: POST http://testserver/auth/token "HTTP/1.1 401 Unauthorized"
+2026-08-23 12:49:09,619 [INFO] httpx: HTTP Request: GET http://testserver/agents "HTTP/1.1 401 Unauthorized"
+2026-08-23 12:49:10,498 [INFO] httpx: HTTP Request: POST http://testserver/auth/token "HTTP/1.1 200 OK"
+2026-08-23 12:49:10,529 [INFO] httpx: HTTP Request: GET http://testserver/agents "HTTP/1.1 200 OK"
+2026-08-23 12:49:10,539 [INFO] httpx: HTTP Request: GET http://testserver/agents "HTTP/1.1 401 Unauthorized"
+2026-08-23 12:49:35,731 [INFO] httpx: HTTP Request: GET http://testserver/ "HTTP/1.1 200 OK"
+2026-08-23 12:49:35,754 [INFO] httpx: HTTP Request: GET http://testserver/agents "HTTP/1.1 401 Unauthorized"
+2026-08-23 12:49:36,663 [INFO] httpx: HTTP Request: POST http://testserver/auth/token "HTTP/1.1 401 Unauthorized"
+2026-08-23 12:49:36,677 [INFO] httpx: HTTP Request: GET http://testserver/agents "HTTP/1.1 401 Unauthorized"
+2026-08-23 12:49:37,490 [INFO] httpx: HTTP Request: POST http://testserver/auth/token "HTTP/1.1 200 OK"
+2026-08-23 12:49:37,508 [INFO] httpx: HTTP Request: GET http://testserver/agents "HTTP/1.1 200 OK"
+2026-08-23 12:49:37,526 [INFO] httpx: HTTP Request: GET http://testserver/agents "HTTP/1.1 200 OK"

@@ -6,6 +6,7 @@ priority/SLA, drafts a reply for common categories, and routes anything
 that needs a human to the right stakeholder.
 """
 import json
+import logging
 from typing import Optional
 from core.llm_client import call_llm
 
@@ -85,10 +86,12 @@ def classify_email(subject: str, body: str, model: Optional[str] = None) -> dict
 
 
 if __name__ == "__main__":
+    # Quick manual test
+    logging.basicConfig(level=logging.INFO)
     sample_subject = "Package not delivered - 3rd time this week!!"
     sample_body = (
         "This is the third time my delivery has been late this week. "
         "I need a manager to call me back today or I'm cancelling my account."
     )
     result = classify_email(sample_subject, sample_body)
-    print(json.dumps(result, indent=2))
+    logging.info(f"Result: {json.dumps(result, indent=2)}")

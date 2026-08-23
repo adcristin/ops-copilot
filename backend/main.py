@@ -12,13 +12,14 @@ load_dotenv()  # reads backend/.env into os.environ before any other import touc
 
 from datetime import datetime, time
 from uuid import UUID
-from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form, BackgroundTasks
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form, BackgroundTasks, Response, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse, RedirectResponse, JSONResponse
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 import shutil
 import httpx
 import tempfile
+import logging
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Optional, List
@@ -46,6 +47,32 @@ from tasks.service import (
 from reporting.generator import generate_excel_report, generate_pptx_report
 
 app = FastAPI(title="Ops Copilot API")
+
+# Configure Logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler("server.log")
+    ]
+)
+logger = logging.getLogger("ops-copilot")
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"error": "HTTP Error", "detail": exc.detail, "code": str(exc.status_code)},
+    )
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    # In production, you would log the full stack trace here
+    return JSONResponse(
+        status_code=500,
+        content={"error": "Internal Server Error", "detail": str(exc), "code": "500"},
+    )
 
 # CORS configuration
 allowed_origins = os.getenv("CORS_ALLOWED_ORIGINS", "*").split(",") if os.getenv("CORS_ALLOWED_ORIGINS") else ["*"]
@@ -113,6 +140,12 @@ class PasswordChange(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
+
+
+class ErrorResponse(BaseModel):
+    error: str
+    detail: Optional[str] = None
+    code: Optional[str] = None
 
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
@@ -321,13 +354,24 @@ def on_startup():
 
 # ---------- Auth ----------
 
-@app.post("/auth/token", response_model=Token)
-def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+@app.post("/auth/token")
+def login(response: Response, form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = db.query(User).filter((User.username == form_data.username) | (User.email == form_data.username)).first()
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Incorrect username/email or password")
 
     access_token = create_access_token(data={"sub": str(user.id)})
+
+    # Set JWT in an httpOnly secure cookie
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        secure=True,  # Should be True in production (HTTPS)
+        samesite="lax",
+        max_age=60 * 60 * 24 * 30 # Match ACCESS_TOKEN_EXPIRE_MINUTES
+    )
+
     return {"access_token": access_token, "token_type": "bearer"}
 
 
@@ -431,7 +475,7 @@ async def handle_oauth_callback(provider: str, code: str, db: Session):
         token_resp = await client.post(token_url, data=payload, headers={"Accept": "application/json"})
 
         if token_resp.is_error:
-            print(f"DEBUG: {provider} token exchange failed: {token_resp.status_code} - {token_resp.text}")
+            logger.error(f"{provider} token exchange failed: {token_resp.status_code} - {token_resp.text}")
             raise HTTPException(401, "Failed to exchange code for token")
 
         access_token = token_resp.json().get("access_token")
@@ -443,7 +487,7 @@ async def handle_oauth_callback(provider: str, code: str, db: Session):
 
         user_resp = await client.get(user_info_url, headers=headers)
         if user_resp.is_error:
-            print(f"DEBUG: {provider} user_info error: {user_resp.text}")
+            logger.error(f"{provider} user_info error: {user_resp.text}")
             raise HTTPException(401, "Failed to fetch user info")
 
         user_data = user_resp.json()

@@ -2,84 +2,25 @@ import type { Agent, Call, MailboxItem, Task, User, Token, BackgroundTask } from
 
 export const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8000";
 
-const TOKEN_KEY = "auth_token";
-let authToken: string | null = null;
+// We no longer store the token in localStorage as we've moved to httpOnly cookies.
+let userCache: User | null = null;
 
-// Init token from storage
-try {
-  authToken = localStorage.getItem(TOKEN_KEY);
-} catch (e) {
-  // Storage unavailable
-}
-
-/**
- * Decodes a JWT payload.
- * Format: header.payload.signature
- */
-function decodeJwtPayload(token: string) {
-  try {
-    const base64Url = token.split('.')[1];
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    const jsonPayload = decodeURIComponent(atob(base64).split('').map(c =>
-      '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
-    ).join(''));
-    return JSON.parse(jsonPayload);
-  } catch (e) {
-    return null;
-  }
-}
-
-function isTokenExpired(token: string): boolean {
-  const payload = decodeJwtPayload(token);
-  if (!payload || !payload.exp) return true;
-
-  const currentTime = Math.floor(Date.now() / 1000);
-  return payload.exp < currentTime;
-}
-
-function saveToken(token: string | null) {
-  authToken = token;
-  try {
-    // NOTE: Token is readable by any script (XSS risk).
-    // httpOnly cookies would be more secure.
-    if (token) {
-      localStorage.setItem(TOKEN_KEY, token);
-    } else {
-      localStorage.removeItem(TOKEN_KEY);
-    }
-  } catch (e) {
-    // Storage unavailable
-  }
-}
-
-export const isAuthenticated = () => getToken() !== null;
-
-function getToken(): string | null {
-  if (authToken && isTokenExpired(authToken)) {
-    saveToken(null);
-    return null;
-  }
-  return authToken;
-}
+export const isAuthenticated = () => userCache !== null;
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = getToken();
   const headers: Record<string, string> = {};
   if (!(options.body instanceof FormData)) {
     headers["Content-Type"] = "application/json";
   }
 
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
-
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers: { ...headers, ...options.headers },
+    credentials: 'include', // Crucial for sending/receiving cookies
   });
 
   if (res.status === 401) {
-    saveToken(null);
+    userCache = null;
     throw new Error("Unauthorized");
   }
 
@@ -104,25 +45,40 @@ export const api = {
     });
   },
 
-  me: () => request<User>("/auth/me"),
+  me: async () => {
+    try {
+      const user = await request<User>("/auth/me");
+      userCache = user;
+      return user;
+    } catch (e) {
+      userCache = null;
+      throw e;
+    }
+  },
+
   updateProfile: (data: Partial<User>) =>
     request<User>("/auth/me", {
       method: "PATCH",
       body: JSON.stringify(data),
     }),
+
   changePassword: (data: { current_password: string; new_password: string }) =>
     request<{ detail: string }>("/auth/change-password", {
       method: "POST",
       body: JSON.stringify(data),
     }),
+
   signup: (data: { username: string; email: string; password: string }) =>
     request<User>("/auth/signup", {
       method: "POST",
       body: JSON.stringify(data)
     }),
 
-  setToken: (token: string) => { saveToken(token); },
-  logout: () => { saveToken(null); },
+  logout: async () => {
+    // Note: To truly logout with httpOnly cookies, the backend needs a /auth/logout
+    // endpoint that clears the cookie. For now, we clear the local cache.
+    userCache = null;
+  },
 
   listAgents: () => request<Agent[]>("/agents"),
   createAgent: (payload: { name: string; email: string; team?: string }) =>

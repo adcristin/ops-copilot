@@ -1,0 +1,30 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./backend/.env
+    restart: always
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+    networks:
+      - ops-network
+
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "80:80" # Production usually uses port 80/443 with a reverse proxy
+    restart: always
+    environment:
+      - VITE_API_BASE=${VITE_API_BASE}
+    networks:
+      - ops-network
+    depends_on:
+      - backend
+
+networks:
+  ops-network:
+    driver: bridge

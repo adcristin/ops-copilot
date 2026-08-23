@@ -9,6 +9,7 @@ LLM backend is provider-agnostic - see core/llm_client.py to switch between
 Anthropic direct and OpenRouter.
 """
 import json
+import logging
 from typing import Optional, List
 from pydantic import BaseModel, Field, ValidationError
 from core.llm_client import call_llm
@@ -102,6 +103,7 @@ def score_and_explain(transcript: str) -> dict:
 
 if __name__ == "__main__":
     # Quick manual test with a sample transcript
+    logging.basicConfig(level=logging.INFO)
     sample = """
     Agent: Yeah hi, uh, what do you want?
     Customer: Hi, I'm calling about my delivery, it's been delayed 3 days now.
@@ -112,4 +114,4 @@ if __name__ == "__main__":
     Agent: I understand but there's nothing more I can do. Anything else?
     """
     result = score_and_explain(sample)
-    print(json.dumps(result, indent=2))
+    logging.info(f"Result: {json.dumps(result, indent=2)}")

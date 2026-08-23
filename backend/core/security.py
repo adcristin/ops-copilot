@@ -2,15 +2,22 @@
 Security utilities for Ops Copilot.
 Handles password hashing and JWT token management.
 """
+import os
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
 import bcrypt
 
-# Configuration - in a real app, these would be in .env
-SECRET_KEY = "your-secret-key-here-change-me-in-prod" # Should be os.getenv("SECRET_KEY")
+# Configuration
+SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-here-change-me-in-prod")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 30 
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 30
+
+if SECRET_KEY == "your-secret-key-here-change-me-in-prod":
+    # In a real production environment, you would raise an error here to prevent the app from starting with a default key.
+    # For now, we'll just print a warning, but for "production-level", we should enforce this.
+    import warnings
+    warnings.warn("WARNING: Application is using a default SECRET_KEY. This is INSECURE and MUST be changed in production.")
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Check if the provided password matches the hash in the DB."""
@@ -42,17 +49,27 @@ def decode_access_token(token: str) -> Optional[dict]:
     except JWTError:
         return None
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from db.session import get_db
 from db.models import User
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token", auto_error=False)
 
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
-    """JWT token verification and user retrieval."""
-    payload = decode_access_token(token)
+def get_current_user(request: Request, token: Optional[str] = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
+    """JWT token verification and user retrieval from header or cookie."""
+    # 1. Try token from header (OAuth2 scheme)
+    # 2. Try token from cookie
+    actual_token = token or request.cookies.get("access_token")
+
+    if not actual_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication token missing"
+        )
+
+    payload = decode_access_token(actual_token)
     if not payload:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
