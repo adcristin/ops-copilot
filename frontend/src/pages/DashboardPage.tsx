@@ -8,7 +8,7 @@ import {
   Phone, ListChecks, AlertTriangle, CheckCircle2,
   FileSpreadsheet, Presentation, ChevronRight, Inbox as InboxIcon, User as UserIcon, Upload
 } from "lucide-react";
-import { api } from "../api";
+import ErrorBoundary from "../components/ErrorBoundary";
 import CallIngestionModal from "../components/CallIngestionModal";
 import type {
   AgentPerformance, MailboxItem, Task, TaskStatus, Priority, MailboxCategory, User
@@ -459,9 +459,11 @@ export default function DashboardPage({ user, onLogout }: { user: User; onLogout
   return (
     <div style={{ display: "flex", height: "100vh", background: BG, fontFamily: "'Inter', -apple-system, sans-serif" }}>
       <Sidebar tab={tab} setTab={setTab} onLogout={onLogout} />
-      {tab === "dashboard" && <Dashboard />}
-      {tab === "inbox" && <InboxTab />}
-      {tab === "tasks" && <TasksTab />}
+      <ErrorBoundary>
+        {tab === "dashboard" && <Dashboard />}
+        {tab === "inbox" && <InboxTab />}
+        {tab === "tasks" && <TasksTab />}
+      </ErrorBoundary>
     </div>
   );
 }

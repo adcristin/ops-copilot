@@ -68,7 +68,7 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    # In production, you would log the full stack trace here
+    logger.exception(f"Unhandled exception occurred: {exc}")
     return JSONResponse(
         status_code=500,
         content={"error": "Internal Server Error", "detail": str(exc), "code": "500"},
