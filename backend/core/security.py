@@ -9,15 +9,13 @@ from jose import JWTError, jwt
 import bcrypt
 
 # Configuration
-SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-here-change-me-in-prod")
+SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 30
 
-if SECRET_KEY == "your-secret-key-here-change-me-in-prod":
-    # In a real production environment, you would raise an error here to prevent the app from starting with a default key.
-    # For now, we'll just print a warning, but for "production-level", we should enforce this.
-    import warnings
-    warnings.warn("WARNING: Application is using a default SECRET_KEY. This is INSECURE and MUST be changed in production.")
+if not SECRET_KEY:
+    # Fail fast: the application cannot function securely without a secret key.
+    raise RuntimeError("CRITICAL: SECRET_KEY environment variable is not set. The application cannot start without it.")
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Check if the provided password matches the hash in the DB."""

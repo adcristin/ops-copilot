@@ -372,7 +372,7 @@ def login(response: Response, form_data: OAuth2PasswordRequestForm = Depends(), 
         max_age=60 * 60 * 24 * 30 # Match ACCESS_TOKEN_EXPIRE_MINUTES
     )
 
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {"detail": "Login successful"}
 
 
 @app.get("/auth/me", response_model=UserOut)
@@ -409,6 +409,13 @@ def change_password(payload: PasswordChange, db: Session = Depends(get_db), curr
     current_user.hashed_password = get_password_hash(payload.new_password)
     db.commit()
     return {"detail": "Password updated successfully"}
+
+
+@app.post("/auth/logout")
+def logout(response: Response):
+    """Clear the authentication cookie."""
+    response.delete_cookie("access_token")
+    return {"detail": "Logged out successfully"}
 
 
 
@@ -543,7 +550,17 @@ async def handle_oauth_callback(provider: str, code: str, db: Session):
         # 4. Generate JWT and redirect
         jwt_token = create_access_token(data={"sub": str(user.id)})
         frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
-        return RedirectResponse(url=f"{frontend_url}/auth-callback?token={jwt_token}")
+
+        response = RedirectResponse(url=f"{frontend_url}/auth-callback")
+        response.set_cookie(
+            key="access_token",
+            value=jwt_token,
+            httponly=True,
+            secure=True,
+            samesite="lax",
+            max_age=60 * 60 * 24 * 30
+        )
+        return response
 
 @app.get("/auth/login/{provider}")
 async def oauth_login(provider: str):
