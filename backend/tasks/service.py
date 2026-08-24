@@ -71,10 +71,10 @@ def close_task(db: Session, task_id: int) -> Task:
     return task
 
 
-def create_background_task(db: Session) -> str:
+def create_background_task(db: Session, org_id: uuid.UUID) -> str:
     """Initialize a background task record and return its ID."""
     task_id = str(uuid.uuid4())
-    bg_task = BackgroundTask(id=task_id, status="pending")
+    bg_task = BackgroundTask(id=task_id, org_id=org_id, status="pending")
     db.add(bg_task)
     db.commit()
     return task_id

@@ -695,7 +695,7 @@ def list_calls(
 @app.post("/mailbox", status_code=202)
 def ingest_email(payload: EmailIn, background_tasks: BackgroundTasks, db: Session = Depends(get_scoped_db), current_user: User = Depends(get_current_user)):
     """Classify an incoming email and schedule it for processing."""
-    task_id = create_background_task(db)
+    task_id = create_background_task(db, current_user.org_id)
     background_tasks.add_task(run_bg_ingest_email, task_id, payload, current_user.org_id)
     return {"task_id": task_id, "status": "accepted"}
 

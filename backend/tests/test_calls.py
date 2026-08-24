@@ -30,13 +30,13 @@ def auth_header(db_session):
 
 def test_upload_transcript_success(db_session, auth_header):
     """Test uploading a transcript directly."""
-    # DEBUG: Check columns
-    from sqlalchemy import inspect
-    inspector = inspect(db_session.get_bind())
-    cols = [c['name'] for c in inspector.get_columns('calls')]
-    print(f"\nDEBUG: Columns in 'calls' table: {cols}")
-
     agent_id = uuid4()
+    # Need an agent in the DB
+    from db.models import Agent, Organization
+    org = db_session.query(Organization).first()
+    agent = Agent(name="Test Agent", email=f"agent_{uuid4().hex[:8]}@example.com", org_id=org.id)
+    db_session.add(agent)
+    db_session.commit()
     # Need an agent in the DB
     from db.models import Agent, Organization
     org = db_session.query(Organization).first()
@@ -65,6 +65,24 @@ def test_upload_transcript_success(db_session, auth_header):
     assert call is not None
     assert call.transcript == "Hello, this is a test call."
     assert mock_process.called
+
+def test_upload_call_missing_all(db_session, auth_header):
+    """Verify 400 if neither audio nor transcript is provided."""
+    response = client.post(
+        "/api/calls/upload",
+        data={"agent_id": str(uuid4())},
+        headers=auth_header
+    )
+    assert response.status_code == 400
+    assert "Either audio file or transcript must be provided" in response.json()["detail"]
+
+def test_upload_call_unauthorized(db_session):
+    """Verify 401 if no auth header is provided."""
+    response = client.post(
+        "/api/calls/upload",
+        data={"agent_id": str(uuid4()), "transcript": "Test"},
+    )
+    assert response.status_code == 401
 
 def test_process_call_ingestion_full_pipeline(db_session):
     """Test the background worker from start to finish."""
