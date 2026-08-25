@@ -10,6 +10,9 @@ import bcrypt
 
 # Configuration
 SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY and (os.getenv("CI") == "true" or os.getenv("ENV") == "test"):
+    SECRET_KEY = "test-secret-key-for-ci-and-testing"
+
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 30
 
