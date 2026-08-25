@@ -372,7 +372,7 @@ def login(response: Response, form_data: OAuth2PasswordRequestForm = Depends(), 
         max_age=60 * 60 * 24 * 30 # Match ACCESS_TOKEN_EXPIRE_MINUTES
     )
 
-    return {"detail": "Login successful"}
+    return {"access_token": access_token, "token_type": "bearer"}
 
 
 @app.get("/auth/me", response_model=UserOut)
