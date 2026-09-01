@@ -8,7 +8,7 @@ Pulls QA scores, mailbox stats, and task status from the DB and produces:
 This replaces the manual "prepare reports using Excel and PowerPoint" line
 in the JD.
 """
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 import pandas as pd
@@ -98,7 +98,7 @@ def generate_pptx_report(db: Session, output_path: str = "ops_report.pptx") -> s
     title_slide_layout = prs.slide_layouts[0]
     slide = prs.slides.add_slide(title_slide_layout)
     slide.shapes.title.text = "Delivery Operations - Weekly Report"
-    slide.placeholders[1].text = datetime.utcnow().strftime("%B %d, %Y")
+    slide.placeholders[1].text = datetime.now(timezone.utc).strftime("%B %d, %Y")
 
     bullet_layout = prs.slide_layouts[1]
 

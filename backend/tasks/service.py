@@ -8,7 +8,7 @@ This is what turns "gaps identified" into "tasks tracked to closure" from the JD
 """
 import uuid
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from db.models import Task, QAScore, MailboxItem, Call, BackgroundTask
 
@@ -25,7 +25,7 @@ def create_task_from_qa_flag(db: Session, qa_score: QAScore) -> Task:
         org_id=call.org_id,
         status="open",
         priority="high" if qa_score.overall_score < 50 else "medium",
-        due_date=datetime.utcnow() + timedelta(days=2),
+        due_date=datetime.now(timezone.utc) + timedelta(days=2),
         assigned_agent_id=call.agent_id,
         source_type="qa_flag",
         source_qa_score_id=qa_score.id,
@@ -42,7 +42,7 @@ def create_task_from_mailbox_escalation(db: Session, item: MailboxItem) -> Task:
         description=item.body,
         status="open",
         priority=item.priority,
-        due_date=datetime.utcnow() + timedelta(hours=item.sla_hours),
+        due_date=datetime.now(timezone.utc) + timedelta(hours=item.sla_hours),
         source_type="mailbox_escalation",
         mailbox_item_id=item.id,
     )
@@ -53,7 +53,7 @@ def create_task_from_mailbox_escalation(db: Session, item: MailboxItem) -> Task:
 
 
 def get_overdue_tasks(db: Session):
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     return (
         db.query(Task)
         .filter(Task.status != "done", Task.due_date < now)
@@ -62,10 +62,10 @@ def get_overdue_tasks(db: Session):
 
 
 def close_task(db: Session, task_id: int) -> Task:
-    task = db.query(Task).get(task_id)
+    task = db.get(Task, task_id)
     if task:
         task.status = "done"
-        task.closed_at = datetime.utcnow()
+        task.closed_at = datetime.now(timezone.utc)
         db.commit()
         db.refresh(task)
     return task
@@ -82,7 +82,7 @@ def create_background_task(db: Session, org_id: uuid.UUID) -> str:
 
 def update_background_task(db: Session, task_id: str, status: str, result: dict = None, error: str = None):
     """Update the status and result of a background task."""
-    task = db.query(BackgroundTask).get(task_id)
+    task = db.get(BackgroundTask, task_id)
     if task:
         task.status = status
         if result:
@@ -94,4 +94,4 @@ def update_background_task(db: Session, task_id: str, status: str, result: dict 
 
 def get_background_task(db: Session, task_id: str) -> BackgroundTask:
     """Retrieve a background task by ID."""
-    return db.query(BackgroundTask).get(task_id)
+    return db.get(BackgroundTask, task_id)

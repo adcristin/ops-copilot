@@ -10,7 +10,8 @@ sys.path.insert(0, os.path.dirname(__file__))
 from dotenv import load_dotenv
 load_dotenv()  # reads backend/.env into os.environ before any other import touches it
 
-from datetime import datetime, time
+from datetime import datetime, time, timezone
+from contextlib import asynccontextmanager
 from uuid import UUID
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form, BackgroundTasks, Response, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,7 +22,7 @@ import httpx
 import tempfile
 import logging
 from sqlalchemy.orm import Session
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import Optional, List
 
 from db.session import get_db, init_db
@@ -46,7 +47,12 @@ from tasks.service import (
 )
 from reporting.generator import generate_excel_report, generate_pptx_report
 
-app = FastAPI(title="Ops Copilot API")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_db()
+    yield
+
+app = FastAPI(title="Ops Copilot API", lifespan=lifespan)
 
 # Configure Logging
 logging.basicConfig(
@@ -122,8 +128,7 @@ class UserOut(BaseModel):
     role: str
 
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserUpdate(BaseModel):
@@ -347,9 +352,6 @@ def run_bg_ingest_email(task_id: str, payload: EmailIn, org_id: str):
         db.close()
 
 
-@app.on_event("startup")
-def on_startup():
-    init_db()
 
 
 # ---------- Auth ----------
@@ -731,7 +733,7 @@ def send_mailbox_reply(item_id: UUID, payload: EmailReplyIn, db: Session = Depen
 
     item.final_reply = payload.reply
     item.status = "replied"
-    item.responded_at = datetime.utcnow()
+    item.responded_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(item)
     return {"detail": "Reply sent successfully", "item_id": item.id}
@@ -788,4 +790,4 @@ def download_pptx(db: Session = Depends(get_scoped_db), current_user: User = Dep
 
 @app.get("/")
 def root():
-    return {"status": "ok", "service": "ops-copilot", "time": datetime.utcnow().isoformat()}
+    return {"status": "ok", "service": "ops-copilot", "time": datetime.now(timezone.utc).isoformat()}

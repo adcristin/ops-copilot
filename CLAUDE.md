@@ -19,6 +19,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Infrastructure
 - **Launch full stack**: `docker-compose up --build`
 
+## Verification
+- **Backend**: All tests in `backend/tests/` should pass.
+- **Frontend**: Verify that the dashboard loads and connects to the API (or falls back to demo data).
+- **End-to-End**: Test the submit-poll flow for call scoring and mailbox ingestion.
+
 ## Architecture Overview
 
 Ops Copilot is an automated delivery-operations toolkit consisting of a FastAPI backend and a React frontend.
